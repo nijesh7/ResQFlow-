@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import {
   UserRole,
+  AuthUser,
   AidRequest,
   SupplyOffer,
   AllocationRecord,
@@ -22,10 +23,20 @@ import {
   fetchAllocationRecommendations,
   approveAllocationAPI
 } from "@/lib/api";
+import {
+  saveRequestToFirestore,
+  saveSupplyToFirestore,
+  saveAllocationToFirestore,
+  saveAuditLogToFirestore,
+  fetchRequestsFromFirestore,
+  fetchSuppliesFromFirestore
+} from "@/lib/firestore-sync";
+
 
 import { Navbar } from "@/components/Navbar";
 import { RoleBanner } from "@/components/RoleBanner";
 import { DisasterMap } from "@/components/DisasterMap";
+import { MissionControl360 } from "@/components/MissionControl360";
 import { AidRequestsTab } from "@/components/AidRequestsTab";
 import { SupplyInventoryTab } from "@/components/SupplyInventoryTab";
 import { AllocationEngineTab } from "@/components/AllocationEngineTab";
@@ -34,6 +45,7 @@ import { AnalyticsTab } from "@/components/AnalyticsTab";
 import { AdminTab } from "@/components/AdminTab";
 import { AuditLogTab } from "@/components/AuditLogTab";
 import { NotificationDrawer } from "@/components/NotificationDrawer";
+import { LoginPage } from "@/components/LoginPage";
 
 import {
   MapPin,
@@ -43,7 +55,8 @@ import {
   Truck,
   BarChart3,
   ShieldCheck,
-  History
+  History,
+  Compass
 } from "lucide-react";
 
 export default function Home() {
@@ -51,6 +64,10 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<string>("OVERVIEW");
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [isMatchingLoading, setIsMatchingLoading] = useState<boolean>(false);
+
+  // Authentication State
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState<boolean>(true);
 
   // Core domain states
   const [requests, setRequests] = useState<AidRequest[]>(INITIAL_DEMO_REQUESTS);
@@ -80,7 +97,7 @@ export default function Home() {
   ]);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
 
-  // Check Backend health on mount
+  // Check Backend health and retrieve cached auth session on mount
   useEffect(() => {
     let isMounted = true;
     checkBackendHealth().then((status) => {
@@ -88,6 +105,20 @@ export default function Home() {
         setBackendOnline(status.ok);
       }
     });
+
+    if (typeof window !== "undefined") {
+      const savedUser = localStorage.getItem("resqflow_auth_user");
+      if (savedUser) {
+        try {
+          const parsed: AuthUser = JSON.parse(savedUser);
+          setAuthUser(parsed);
+          setCurrentRole(parsed.role);
+        } catch (e) {
+          console.error("Failed to parse cached session", e);
+        }
+      }
+    }
+
     return () => {
       isMounted = false;
     };
@@ -105,6 +136,38 @@ export default function Home() {
     setNotifications((prev) => [newItem, ...prev]);
   };
 
+  const handleLoginSuccess = (user: AuthUser) => {
+    setAuthUser(user);
+    setCurrentRole(user.role);
+    setShowLoginModal(false);
+
+    // Switch default tab tailored to the user's role
+    if (user.role === "REQUESTER") {
+      setActiveTab("REQUESTS");
+    } else if (user.role === "DONOR") {
+      setActiveTab("SUPPLIES");
+    } else if (user.role === "COORDINATOR") {
+      setActiveTab("ALLOCATIONS");
+    } else if (user.role === "ADMIN") {
+      setActiveTab("ADMIN");
+    }
+
+    addNotification(
+      `Welcome, ${user.displayName}!`,
+      `Signed in successfully with role: ${user.role} (${user.organisationName || "Volunteer"}).`,
+      "success"
+    );
+  };
+
+  const handleSignOut = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("resqflow_auth_user");
+    }
+    setAuthUser(null);
+    setShowLoginModal(true);
+    addNotification("Signed Out", "You have signed out of ResQFlow.", "info");
+  };
+
   const handleResetDemo = () => {
     setRequests(INITIAL_DEMO_REQUESTS);
     setSupplies(INITIAL_DEMO_SUPPLIES);
@@ -117,8 +180,8 @@ export default function Home() {
   const handleCreateRequest = (newReq: Partial<AidRequest>) => {
     const req: AidRequest = {
       request_id: `REQ-${Math.floor(100 + Math.random() * 900)}`,
-      requester_id: `USR-${Math.floor(1000 + Math.random() * 9000)}`,
-      requester_name: newReq.requester_name || "Community Relief Shelter",
+      requester_id: authUser?.uid || `USR-${Math.floor(1000 + Math.random() * 9000)}`,
+      requester_name: newReq.requester_name || authUser?.displayName || "Community Relief Shelter",
       item_category: newReq.item_category || "WATER",
       description: newReq.description || "",
       quantity_required: newReq.quantity_required || 10,
@@ -133,6 +196,7 @@ export default function Home() {
     };
 
     setRequests((prev) => [req, ...prev]);
+    saveRequestToFirestore(req);
     addNotification(
       `New ${req.urgency} Request`,
       `${req.requester_name} created request for ${req.quantity_required} ${req.unit} of ${req.item_category}.`,
@@ -143,8 +207,8 @@ export default function Home() {
   const handleCreateSupply = (newSup: Partial<SupplyOffer>) => {
     const sup: SupplyOffer = {
       supply_id: `SUP-${Math.floor(200 + Math.random() * 800)}`,
-      donor_id: `DONOR-${Math.floor(1000 + Math.random() * 9000)}`,
-      donor_name: newSup.donor_name || "Community Relief Donor",
+      donor_id: authUser?.uid || `DONOR-${Math.floor(1000 + Math.random() * 9000)}`,
+      donor_name: newSup.donor_name || authUser?.displayName || "Community Relief Donor",
       item_category: newSup.item_category || "WATER",
       description: newSup.description || "",
       total_quantity: newSup.total_quantity || 100,
@@ -158,6 +222,7 @@ export default function Home() {
     };
 
     setSupplies((prev) => [sup, ...prev]);
+    saveSupplyToFirestore(sup);
     addNotification(
       "New Inventory Registered",
       `${sup.donor_name} registered ${sup.total_quantity} ${sup.unit} of ${sup.item_category}.`,
@@ -204,7 +269,7 @@ export default function Home() {
       rec.request_id,
       rec.supply_id,
       approvedQty,
-      `COORD-${currentRole}`,
+      authUser?.displayName ? `${authUser.displayName} (${currentRole})` : `COORD-${currentRole}`,
       overrideReason
     );
 
@@ -242,11 +307,12 @@ export default function Home() {
 
     // 4. Append allocation record
     setAllocations((prev) => [newRecord, ...prev]);
+    saveAllocationToFirestore(newRecord);
 
     // 5. Audit Log
     const audit: AuditLogEntry = {
       audit_id: `AUD-${Date.now().toString(36).toUpperCase()}`,
-      actor_id: `COORD-${currentRole}`,
+      actor_id: authUser?.displayName ? `${authUser.displayName} (${currentRole})` : `COORD-${currentRole}`,
       action: "APPROVE_AND_RESERVE_STOCK",
       entity_type: "ALLOCATION",
       entity_id: newRecord.allocation_id,
@@ -256,6 +322,7 @@ export default function Home() {
       timestamp: new Date().toISOString(),
     };
     setAuditLogs((prev) => [audit, ...prev]);
+    saveAuditLogToFirestore(audit);
 
     // 6. Update matching recommendations in view
     setMatchingResult((prev) => {
@@ -291,7 +358,7 @@ export default function Home() {
 
     const audit: AuditLogEntry = {
       audit_id: `AUD-${Date.now().toString(36).toUpperCase()}`,
-      actor_id: "DISPATCH-LOGISTICS",
+      actor_id: authUser?.displayName || "DISPATCH-LOGISTICS",
       action: "DISPATCH_AID_SUPPLIES",
       entity_type: "ALLOCATION",
       entity_id: allocId,
@@ -321,7 +388,6 @@ export default function Home() {
       )
     );
 
-    // If fully received, update request status to Fulfilled
     if (!isDisputed && alloc) {
       setRequests((prev) =>
         prev.map((r) =>
@@ -334,7 +400,7 @@ export default function Home() {
 
     const audit: AuditLogEntry = {
       audit_id: `AUD-${Date.now().toString(36).toUpperCase()}`,
-      actor_id: "RECIPIENT-VERIFIED",
+      actor_id: authUser?.displayName || "RECIPIENT-VERIFIED",
       action: "CONFIRM_DELIVERY_RECEIPT",
       entity_type: "ALLOCATION",
       entity_id: allocId,
@@ -355,7 +421,6 @@ export default function Home() {
     const alloc = allocations.find((a) => a.allocation_id === allocId);
     if (!alloc) return;
 
-    // Release stock back
     setSupplies((prev) =>
       prev.map((s) => {
         if (s.supply_id === alloc.supply_id) {
@@ -370,7 +435,6 @@ export default function Home() {
       })
     );
 
-    // Revert request
     setRequests((prev) =>
       prev.map((r) => {
         if (r.request_id === alloc.request_id) {
@@ -393,7 +457,7 @@ export default function Home() {
 
     const audit: AuditLogEntry = {
       audit_id: `AUD-${Date.now().toString(36).toUpperCase()}`,
-      actor_id: `COORD-${currentRole}`,
+      actor_id: authUser?.displayName ? `${authUser.displayName} (${currentRole})` : `COORD-${currentRole}`,
       action: "CANCEL_ALLOCATION_AND_RELEASE_STOCK",
       entity_type: "ALLOCATION",
       entity_id: allocId,
@@ -405,31 +469,126 @@ export default function Home() {
     addNotification("Stock Released", `Allocation ${allocId} cancelled. Stock restored to available depot inventory.`, "info");
   };
 
+  // If user clicks "Login / Select Role" or has no active session, show the login experience
+  if (showLoginModal) {
+    return (
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        onCancel={authUser ? () => setShowLoginModal(false) : undefined}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       <Navbar
         currentRole={currentRole}
-        onRoleChange={setCurrentRole}
+        onRoleChange={(role) => {
+          setCurrentRole(role);
+          if (authUser) {
+            const updated = { ...authUser, role };
+            setAuthUser(updated);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("resqflow_auth_user", JSON.stringify(updated));
+            }
+          }
+        }}
         onResetDemo={handleResetDemo}
         backendOnline={backendOnline}
         notificationCount={notifications.filter((n) => !n.read).length}
         onOpenNotifications={() => setIsDrawerOpen(true)}
+        authUser={authUser}
+        onOpenLogin={() => setShowLoginModal(true)}
+        onSignOut={handleSignOut}
+        activeTab={activeTab}
+        onNavigateTab={setActiveTab}
       />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
-        <RoleBanner role={currentRole} />
+        <RoleBanner role={currentRole} onNavigateTab={setActiveTab} />
+
+        {/* Quick KPI Overview Bar */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 mb-6">
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-semibold text-slate-500 block mb-0.5">Critical Requests</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-slate-900">
+                  {requests.filter(r => r.urgency === "CRITICAL").length}
+                </span>
+                <span className="text-[10px] text-red-700 font-bold px-1.5 py-0.5 rounded-full bg-red-50 border border-red-200">
+                  Urgent
+                </span>
+              </div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-red-50 border border-red-100 text-red-600">
+              <HeartHandshake className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-semibold text-slate-500 block mb-0.5">Available Stock</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-slate-900">
+                  {supplies.reduce((acc, s) => acc + s.available_quantity, 0)}
+                </span>
+                <span className="text-[10px] text-teal-700 font-bold px-1.5 py-0.5 rounded-full bg-teal-50 border border-teal-200">
+                  Ready Depot
+                </span>
+              </div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-100 text-teal-600">
+              <Package className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-semibold text-slate-500 block mb-0.5">Stock in Transit / Reserved</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-slate-900">
+                  {supplies.reduce((acc, s) => acc + s.reserved_quantity, 0)}
+                </span>
+                <span className="text-[10px] text-amber-700 font-bold px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200">
+                  Locked
+                </span>
+              </div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100 text-amber-600">
+              <Truck className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-semibold text-slate-500 block mb-0.5">Verified Deliveries</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-slate-900">
+                  {allocations.filter(a => a.allocation_status === "Received").length}
+                </span>
+                <span className="text-[10px] text-emerald-700 font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200">
+                  Delivered
+                </span>
+              </div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
 
         {/* Tab Navigation */}
-        <div className="border-b border-slate-800 mb-6 overflow-x-auto scrollbar-none">
-          <nav className="flex space-x-2 sm:space-x-4 min-w-max">
+        <div className="border-b border-slate-200 mb-6 overflow-x-auto scrollbar-none">
+          <nav className="flex space-x-1.5 sm:space-x-2 min-w-max pb-2">
             {[
-              { id: "OVERVIEW", label: "Operations Map", icon: MapPin },
+              { id: "OVERVIEW", label: "Mission Control 360", icon: Compass, badge: "HUD" },
               { id: "REQUESTS", label: `Aid Requests (${requests.length})`, icon: HeartHandshake },
               { id: "SUPPLIES", label: `Supply Depots (${supplies.length})`, icon: Package },
               { id: "ALLOCATIONS", label: "Allocation Engine", icon: BrainCircuit, badge: "Coordinator" },
               { id: "FULFILMENT", label: `Deliveries (${allocations.length})`, icon: Truck },
               { id: "ANALYTICS", label: "Analytics & Coverage", icon: BarChart3 },
-              { id: "ADMIN", label: "Admin & NGOs", icon: ShieldCheck, badge: "Admin" },
+              { id: "ADMIN", label: "Admin & Firestore", icon: ShieldCheck, badge: "Live" },
               { id: "AUDIT", label: "Audit Trail", icon: History },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -438,16 +597,18 @@ export default function Home() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 py-3 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+                  className={`flex items-center gap-2 py-2 px-3 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${
                     active
-                      ? "border-teal-400 text-teal-400"
-                      : "border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700"
+                      ? "bg-teal-600 text-white shadow-sm font-bold"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span>{tab.label}</span>
                   {tab.badge && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-normal">
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-extrabold ${
+                      active ? "bg-teal-700 text-white" : "bg-slate-200 text-slate-600"
+                    }`}>
                       {tab.badge}
                     </span>
                   )}
@@ -459,56 +620,21 @@ export default function Home() {
 
         {/* Tab Content Display */}
         {activeTab === "OVERVIEW" && (
-          <div className="space-y-6">
-            <DisasterMap requests={requests} supplies={supplies} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-bold text-sm text-white">Most Urgent Relief Needs</h4>
-                  <button onClick={() => setActiveTab("REQUESTS")} className="text-xs text-teal-400 hover:underline">
-                    View All ({requests.length})
-                  </button>
-                </div>
-                <div className="divide-y divide-slate-800">
-                  {requests.slice(0, 3).map((r) => (
-                    <div key={r.request_id} className="py-2.5 flex items-center justify-between text-xs">
-                      <div>
-                        <div className="font-semibold text-slate-200">{r.requester_name}</div>
-                        <div className="text-slate-400 text-[11px]">{r.quantity_required} {r.unit} of {r.item_category}</div>
-                      </div>
-                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
-                        r.urgency === "CRITICAL" ? "bg-red-950 text-red-400 border border-red-800" : "bg-orange-950 text-orange-400 border border-orange-800"
-                      }`}>
-                        {r.urgency}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-bold text-sm text-white">Active Consignments in Transit</h4>
-                  <button onClick={() => setActiveTab("FULFILMENT")} className="text-xs text-teal-400 hover:underline">
-                    Track Fulfilment ({allocations.length})
-                  </button>
-                </div>
-                <div className="divide-y divide-slate-800">
-                  {allocations.slice(0, 3).map((a) => (
-                    <div key={a.allocation_id} className="py-2.5 flex items-center justify-between text-xs">
-                      <div>
-                        <div className="font-mono text-teal-400 font-semibold">{a.allocation_id}</div>
-                        <div className="text-slate-400 text-[11px]">{a.approved_quantity} {a.unit} allocated</div>
-                      </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-sky-950 text-sky-300 border border-sky-800">
-                        {a.allocation_status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          <MissionControl360
+            requests={requests}
+            supplies={supplies}
+            allocations={allocations}
+            currentRole={currentRole}
+            onRunEngine={handleRunEngine}
+            onNavigateTab={setActiveTab}
+            onExecuteCommand={(action, target) => {
+              addNotification(
+                `Emergency Command Dispatched`,
+                `Action [${action}] directed to [${target}] by ${authUser?.displayName || currentRole}.`,
+                "info"
+              );
+            }}
+          />
         )}
 
         {activeTab === "REQUESTS" && (
@@ -572,7 +698,7 @@ export default function Home() {
         onMarkAllRead={() => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))}
       />
 
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-200 bg-white py-5 text-center text-xs text-slate-500">
         <p>ResQFlow Humanitarian Technology &bull; Community Emergency Resource Allocation Platform &bull; Cloud Firestore Architecture</p>
       </footer>
     </div>

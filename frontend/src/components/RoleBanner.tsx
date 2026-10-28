@@ -1,69 +1,132 @@
 "use client";
 
-import React from "react";
-import { UserRole } from "@/types";
-import { UserCheck, ShieldCheck, HeartHandshake, Compass, AlertCircle } from "lucide-react";
+import React, { useState } from "react";
+import { UserRole, AuthUser } from "@/types";
+import {
+  AlertCircle,
+  ShieldCheck,
+  HeartHandshake,
+  Package,
+  UserCheck,
+  ArrowRight,
+  X,
+  Radio,
+  Info
+} from "lucide-react";
 
 interface RoleBannerProps {
   role: UserRole;
+  authUser?: AuthUser | null;
+  onNavigateTab?: (tab: string) => void;
 }
 
-export const RoleBanner: React.FC<RoleBannerProps> = ({ role }) => {
-  const roleConfig = {
+export const RoleBanner: React.FC<RoleBannerProps> = ({ role, authUser, onNavigateTab }) => {
+  const [alertDismissed, setAlertDismissed] = useState<boolean>(false);
+
+  // Time-aware greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const userName = authUser?.displayName || (
+    role === "COORDINATOR" ? "Priya Sharma" :
+    role === "REQUESTER" ? "Dr. Suresh Kumar" :
+    role === "DONOR" ? "Apex Logistics" : "Anand Kumar"
+  );
+
+  const roleMeta = {
+    COORDINATOR: {
+      subtitle: "Review emergency demands, execute the transparent allocation engine, and approve safe stock reservations.",
+      actionLabel: "Launch Allocation Engine",
+      targetTab: "ALLOCATIONS",
+      badge: "Emergency Coordinator",
+      badgeClass: "bg-teal-50 text-teal-800 border-teal-200",
+    },
     REQUESTER: {
-      title: "Community Requester Persona",
-      desc: "Authorized to create emergency aid requests for your shelter/community, attach needs, track allocation status, and confirm final delivery receipt.",
-      icon: HeartHandshake,
-      badgeColor: "bg-amber-950/80 text-amber-300 border-amber-800",
-      accent: "from-amber-500/10 to-transparent",
+      subtitle: "Submit aid requirements for your shelter or clinic, track delivery transit, and verify quantities received.",
+      actionLabel: "Submit Aid Request",
+      targetTab: "REQUESTS",
+      badge: "Community Requester",
+      badgeClass: "bg-amber-50 text-amber-800 border-amber-200",
     },
     DONOR: {
-      title: "Supply Donor / NGO Depot Persona",
-      desc: "Authorized to register available humanitarian relief inventory, review matched emergency requests, and track safe stock reservations.",
-      icon: Compass,
-      badgeColor: "bg-blue-950/80 text-blue-300 border-blue-800",
-      accent: "from-blue-500/10 to-transparent",
-    },
-    COORDINATOR: {
-      title: "Emergency Relief Coordinator Persona",
-      desc: "Authorized to review unfulfilled needs, execute the transparent allocation engine, inspect priority scores, approve transaction-safe stock reservations, and dispatch aid.",
-      icon: ShieldCheck,
-      badgeColor: "bg-teal-950/80 text-teal-300 border-teal-800",
-      accent: "from-teal-500/10 to-transparent",
+      subtitle: "Register relief warehouse inventories, monitor shelf-life constraints, and manage reserved stock.",
+      actionLabel: "Register Depot Supplies",
+      targetTab: "SUPPLIES",
+      badge: "Supply Donor",
+      badgeClass: "bg-sky-50 text-sky-800 border-sky-200",
     },
     ADMIN: {
-      title: "Platform Administrator Persona",
-      desc: "Authorized to verify humanitarian organisations, audit immutable allocation trails, detect duplicate abuse, and configure categories.",
-      icon: UserCheck,
-      badgeColor: "bg-purple-950/80 text-purple-300 border-purple-800",
-      accent: "from-purple-500/10 to-transparent",
+      subtitle: "Verify humanitarian organisations, manage permissions, synchronize Firestore database, and review immutable audit trails.",
+      actionLabel: "Manage Firestore & NGOs",
+      targetTab: "ADMIN",
+      badge: "Platform Administrator",
+      badgeClass: "bg-purple-50 text-purple-800 border-purple-200",
     },
   }[role];
 
-  const Icon = roleConfig.icon;
-
   return (
-    <div className={`relative overflow-hidden rounded-xl border border-slate-800 bg-gradient-to-r ${roleConfig.accent} p-4 sm:p-5 mb-6`}>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-teal-400">
-            <Icon className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-white">{roleConfig.title}</h2>
-              <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${roleConfig.badgeColor}`}>
-                Active Role
-              </span>
+    <div className="space-y-3 mb-6">
+      {/* Compact Active Emergency Alert */}
+      {!alertDismissed && (
+        <div className="bg-red-50/90 border border-red-200/90 rounded-xl p-3 sm:px-4 flex items-center justify-between gap-3 text-xs shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="p-1 rounded-md bg-red-100 text-red-700">
+              <Radio className="w-4 h-4 animate-pulse" />
+            </span>
+            <div className="text-slate-800">
+              <span className="font-bold text-red-900">Level 3 Flood Alert &bull; Coastal Basin Ward 4:</span>{" "}
+              <span className="text-slate-600">Flash waterlogging reported. High priority for potable water and trauma kits.</span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5 max-w-2xl">{roleConfig.desc}</p>
           </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {onNavigateTab && (
+              <button
+                onClick={() => onNavigateTab("OVERVIEW")}
+                className="font-semibold text-red-700 hover:text-red-900 hover:underline px-2 py-0.5"
+              >
+                View on Map
+              </button>
+            )}
+            <button
+              onClick={() => setAlertDismissed(true)}
+              className="p-1 text-slate-400 hover:text-slate-700 rounded-md"
+              title="Dismiss alert"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Elegant Welcome & Context Header */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5 mb-1">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              {getGreeting()}, {userName.split(" ")[0]}
+            </h1>
+            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md border ${roleMeta.badgeClass}`}>
+              {roleMeta.badge}
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500 max-w-2xl">
+            {roleMeta.subtitle}
+          </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-900/80 border border-slate-800/80 px-3 py-1.5 rounded-lg">
-          <AlertCircle className="w-3.5 h-3.5 text-teal-400" />
-          <span>Server validates all actions via Admin SDK & rules</span>
-        </div>
+        {onNavigateTab && (
+          <button
+            onClick={() => onNavigateTab(roleMeta.targetTab)}
+            className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+          >
+            <span>{roleMeta.actionLabel}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );

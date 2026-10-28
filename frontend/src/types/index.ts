@@ -160,3 +160,13 @@ export interface Organisation {
   serviceArea: string;
   contactEmail: string;
 }
+
+export interface AuthUser {
+  uid: string;
+  displayName: string;
+  email: string;
+  role: UserRole;
+  organisationName?: string;
+  phone?: string;
+}
+
