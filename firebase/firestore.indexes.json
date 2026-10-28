@@ -1,0 +1,31 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "aidRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "itemCategory", "order": "ASCENDING" },
+        { "fieldPath": "urgency", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "supplyOffers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "itemCategory", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "availableQuantity", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "allocations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "allocationStatus", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

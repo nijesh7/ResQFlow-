@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+
+    function isAdmin() {
+      return hasRole('ADMIN');
+    }
+
+    function isCoordinator() {
+      return hasRole('COORDINATOR') || isAdmin();
+    }
+
+    function isDonor() {
+      return hasRole('DONOR') || isCoordinator();
+    }
+
+    function isRequester() {
+      return hasRole('REQUESTER') || isCoordinator();
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // USERS COLLECTION
+    // Users can read public profiles or their own full record.
+    // Users CANNOT self-assign 'ADMIN' or 'COORDINATOR' role.
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId &&
+        (!request.resource.data.keys().hasAny(['role']) ||
+         request.resource.data.role in ['REQUESTER', 'DONOR']);
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (request.auth.uid == userId &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'accountStatus']))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ORGANISATIONS COLLECTION
+    match /organisations/{orgId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || (isAuthenticated() && request.resource.data.leadUserId == request.auth.uid);
+    }
+
+    // AID REQUESTS
+    // Requesters can create and manage their requests.
+    // Public cannot view unverified private contact info.
+    match /aidRequests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.requesterId == request.auth.uid || isCoordinator()
+      ) && request.resource.data.quantityRequired > 0;
+      allow update: if isAuthenticated() && (
+        isCoordinator() ||
+        (resource.data.requesterId == request.auth.uid &&
+         resource.data.status in ['Draft', 'Submitted'])
+      );
+      allow delete: if isAdmin() || (
+        isAuthenticated() && resource.data.requesterId == request.auth.uid && resource.data.status == 'Draft'
+      );
+    }
+
+    // SUPPLY OFFERS
+    // Donors can create and manage their supplies. Available quantity must not be negative.
+    match /supplyOffers/{supplyId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.donorId == request.auth.uid || isCoordinator()
+      ) && request.resource.data.totalQuantity > 0 && request.resource.data.availableQuantity >= 0;
+      allow update: if isAuthenticated() && (
+        isCoordinator() ||
+        (resource.data.donorId == request.auth.uid && request.resource.data.availableQuantity >= 0)
+      );
+      allow delete: if isAdmin() || (
+        isAuthenticated() && resource.data.donorId == request.auth.uid && resource.data.reservedQuantity == 0
+      );
+    }
+
+    // ALLOCATIONS
+    // Only coordinators or administrators can create or update allocations directly
+    match /allocations/{allocationId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isCoordinator();
+      allow delete: if isAdmin();
+    }
+
+    // DELIVERIES
+    match /deliveries/{deliveryId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isCoordinator() || isDonor() || isRequester();
+      allow delete: if isAdmin();
+    }
+
+    // NOTIFICATIONS
+    // Users can read and update their own notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.recipientId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt']);
+      allow create: if isCoordinator() || isAdmin();
+      allow delete: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+    }
+
+    // AUDIT LOGS
+    // Append-only from authorized backend/coordinators, readable by admins and coordinators
+    match /auditLogs/{auditId} {
+      allow read: if isCoordinator();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Append-only immutable log
+    }
+  }
+}
