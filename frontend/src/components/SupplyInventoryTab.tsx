@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import { SupplyOffer, UserRole } from "@/types";
+import React, { useState, useEffect } from "react";
 import {
   Plus,
   Package,
@@ -21,37 +20,59 @@ import {
   ChevronRight,
   Boxes
 } from "lucide-react";
+import { SupplyOffer, UserRole, AuthUser } from "@/types";
 
 interface SupplyInventoryTabProps {
   supplies: SupplyOffer[];
   onCreateSupply: (sup: Partial<SupplyOffer>) => void;
   currentRole: UserRole;
+  authUser?: AuthUser | null;
 }
 
 export const SupplyInventoryTab: React.FC<SupplyInventoryTabProps> = ({
   supplies,
   onCreateSupply,
   currentRole,
+  authUser,
 }) => {
+  const isDonor = currentRole === "DONOR";
   const [showModal, setShowModal] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
+  const [scopeFilter, setScopeFilter] = useState<"MY_DEPOT" | "ALL">(
+    isDonor ? "MY_DEPOT" : "ALL"
+  );
 
   // Form State
-  const [donorName, setDonorName] = useState<string>("");
+  const [donorName, setDonorName] = useState<string>(
+    authUser?.organisationName || "Apex Pharma Humanitarian Donation"
+  );
   const [category, setCategory] = useState<string>("WATER");
   const [desc, setDesc] = useState<string>("");
   const [totalQty, setTotalQty] = useState<number>(200);
   const [unit, setUnit] = useState<string>("liters");
-  const [address, setAddress] = useState<string>("");
+  const [address, setAddress] = useState<string>("Apex Medical Logistics Hub, Chennai");
   const [daysValid, setDaysValid] = useState<number>(30);
+
+  // Check if a supply belongs to the active donor
+  const isMyDepotSupply = (s: SupplyOffer) => {
+    const donorKey = (authUser?.organisationName || "Apex").toLowerCase();
+    const nameMatch = s.donor_name && s.donor_name.toLowerCase().includes(donorKey.slice(0, 4));
+    const uidMatch = s.donor_id === authUser?.uid || s.donor_id === "DONOR-USR-2";
+    return nameMatch || uidMatch;
+  };
+
+  const mySupplies = supplies.filter(isMyDepotSupply);
+  const myTotalPledged = mySupplies.reduce((acc, s) => acc + s.total_quantity, 0);
+  const myTotalAvail = mySupplies.reduce((acc, s) => acc + s.available_quantity, 0);
+  const myTotalReserved = mySupplies.reduce((acc, s) => acc + s.reserved_quantity, 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!desc || totalQty <= 0) return;
 
     onCreateSupply({
-      donor_name: donorName || "Community Relief Donor",
+      donor_name: donorName || authUser?.organisationName || "Community Relief Donor",
       item_category: category,
       description: desc,
       total_quantity: totalQty,
@@ -71,8 +92,32 @@ export const SupplyInventoryTab: React.FC<SupplyInventoryTabProps> = ({
 
     setShowModal(false);
     setDesc("");
-    setDonorName("");
-    setAddress("");
+  };
+
+  const handleQuickPledge = (
+    cat: string,
+    quantity: number,
+    u: string,
+    batchDesc: string
+  ) => {
+    onCreateSupply({
+      donor_name: donorName || authUser?.organisationName || "Apex Pharma Humanitarian Donation",
+      item_category: cat,
+      description: batchDesc,
+      total_quantity: quantity,
+      available_quantity: quantity,
+      reserved_quantity: 0,
+      unit: u,
+      location: {
+        address: address || "Apex Medical Logistics Hub, Chennai",
+        lat: 13.0500,
+        lng: 80.2400,
+        approximate: true,
+      },
+      expiry_at: new Date(Date.now() + 60 * 86400 * 1000).toISOString(),
+      status: "Available",
+      verification_status: "Verified",
+    });
   };
 
   const getCategoryIcon = (cat: string) => {
@@ -95,6 +140,7 @@ export const SupplyInventoryTab: React.FC<SupplyInventoryTabProps> = ({
   const totalAll = supplies.reduce((acc, s) => acc + s.total_quantity, 0);
 
   const filtered = supplies.filter((s) => {
+    if (scopeFilter === "MY_DEPOT" && !isMyDepotSupply(s)) return false;
     if (selectedCategory !== "ALL" && s.item_category.toUpperCase() !== selectedCategory) return false;
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -110,51 +156,232 @@ export const SupplyInventoryTab: React.FC<SupplyInventoryTabProps> = ({
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Role-Specific Portal Header for DONOR */}
+      {isDonor ? (
+        <div className="space-y-4">
+          <div className="rounded-2xl p-5 bg-gradient-to-r from-[#F0FDFA] via-[#CCFBF1]/40 to-[#FFFFFF] border border-[#99F6E4] shadow-xs">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#0F766E] to-[#115E59] text-white flex items-center justify-center shrink-0 shadow-sm shadow-teal-500/20">
+                  <Boxes className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#CCFBF1] text-[#0F766E] border border-[#99F6E4] uppercase tracking-wide">
+                      Humanitarian Partner Portal
+                    </span>
+                    <span className="text-xs text-[#0F766E] font-semibold flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5" /> Depot #DEP-01 &bull; Verified Accreditation
+                    </span>
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-extrabold text-[#172033] mt-1">
+                    {authUser?.organisationName || "Apex Pharma Humanitarian Donation"}
+                  </h2>
+                  <p className="text-xs text-[#687386] font-medium mt-0.5">
+                    Logistics Manager: <span className="font-semibold text-[#172033]">{authUser?.displayName || "Apex Logistics Hub"}</span> &bull; Stock synchronized with Central Allocation Engine
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-white border border-[#99F6E4] shadow-2xs text-xs">
+                  <div>
+                    <span className="text-[10px] text-[#8C9BAE] uppercase font-bold block">My Donated Units</span>
+                    <span className="font-extrabold text-sm text-[#172033]">{myTotalPledged.toLocaleString()}</span>
+                  </div>
+                  <div className="w-px h-7 bg-[#E7EAF0]" />
+                  <div>
+                    <span className="text-[10px] text-[#0F766E] uppercase font-bold block">Available Stock</span>
+                    <span className="font-extrabold text-sm text-[#0F766E]">{myTotalAvail.toLocaleString()}</span>
+                  </div>
+                  <div className="w-px h-7 bg-[#E7EAF0]" />
+                  <div>
+                    <span className="text-[10px] text-[#B45309] uppercase font-bold block">Allocated to Shelters</span>
+                    <span className="font-extrabold text-sm text-[#B45309]">{myTotalReserved.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setDonorName(authUser?.organisationName || "Apex Pharma Humanitarian Donation");
+                    setShowModal(true);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-[#172033] hover:bg-[#232F48] text-white font-bold text-xs shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 text-[#12B8A6]" />
+                  <span>+ Custom Supply Pledge</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 1-Click Fast Stock Pledge Presets to Make Donating Super Easy */}
+          <div className="bg-[#FFFFFF] border border-[#E7EAF0] rounded-2xl p-4 shadow-xs">
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-xs font-bold text-[#172033] flex items-center gap-1.5">
+                <span className="text-teal-600">⚡</span> 1-Click Fast Donation Presets:
+              </span>
+              <span className="text-[11px] text-[#8C9BAE]">Tap any batch preset to commit verified stock instantly</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickPledge(
+                    "WATER",
+                    600,
+                    "liters",
+                    "Pallet of sealed 20-liter drinking water cans ready for transit."
+                  )
+                }
+                className="p-3 rounded-xl border border-[#CCFBF1] bg-[#F0FDFA] hover:bg-[#CCFBF1]/60 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2">
+                  <Droplets className="w-4 h-4 text-[#0F766E]" />
+                  <span className="text-xs font-bold text-[#0F766E]">+ 600L Water</span>
+                </div>
+                <span className="text-[10px] text-[#687386] mt-1 block">Pallet sealed &bull; Ready</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickPledge(
+                    "MEDICINE",
+                    60,
+                    "kits",
+                    "Emergency sterile trauma kits, bandages, and antibiotic ointments."
+                  )
+                }
+                className="p-3 rounded-xl border border-[#FEE2E2] bg-[#FEF2F2] hover:bg-[#FEE2E2]/60 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2">
+                  <Pill className="w-4 h-4 text-[#F04452]" />
+                  <span className="text-xs font-bold text-[#F04452]">+ 60 Trauma Kits</span>
+                </div>
+                <span className="text-[10px] text-[#687386] mt-1 block">Hospital grade &bull; Valid 90d</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickPledge(
+                    "FOOD",
+                    200,
+                    "boxes",
+                    "High-calorie emergency food bars and ready-to-eat meal rations."
+                  )
+                }
+                className="p-3 rounded-xl border border-[#FEF3C7] bg-[#FFFBEB] hover:bg-[#FEF3C7]/60 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2">
+                  <UtensilsCrossed className="w-4 h-4 text-[#B45309]" />
+                  <span className="text-xs font-bold text-[#B45309]">+ 200 Ration Boxes</span>
+                </div>
+                <span className="text-[10px] text-[#687386] mt-1 block">Ready meals &bull; Shelf stable</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickPledge(
+                    "SHELTER",
+                    40,
+                    "kits",
+                    "Reinforced disaster tarpaulins, tent poles, and heavy-duty ground pegs."
+                  )
+                }
+                className="p-3 rounded-xl border border-[#EDE9FE] bg-[#F5F3FF] hover:bg-[#EDE9FE]/60 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2">
+                  <Tent className="w-4 h-4 text-[#7C3AED]" />
+                  <span className="text-xs font-bold text-[#7C3AED]">+ 40 Shelter Kits</span>
+                </div>
+                <span className="text-[10px] text-[#687386] mt-1 block">Weatherproof &bull; Evacuee grade</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* 1. Metric Overview Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="resq-surface rounded-2xl p-4 sm:p-5 bg-[#FFFFFF]">
           <span className="text-xs font-semibold text-[#687386]">Ready for Dispatch</span>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl sm:text-3xl font-extrabold text-[#172033]">
-              {totalAvail.toLocaleString()}
+              {(isDonor ? myTotalAvail : totalAvail).toLocaleString()}
             </span>
             <span className="text-[11px] font-bold text-[#0F766E] bg-[#F0FDFA] px-1.5 py-0.5 rounded border border-[#CCFBF1]">
               Available
             </span>
           </div>
-          <p className="text-[11px] text-[#8C9BAE] mt-2">Verified in warehouse inventory</p>
+          <p className="text-[11px] text-[#8C9BAE] mt-2">
+            {isDonor ? "In your depot inventory" : "Verified in warehouse inventory"}
+          </p>
         </div>
 
         <div className="resq-surface rounded-2xl p-4 sm:p-5 bg-[#FFFFFF]">
           <span className="text-xs font-semibold text-[#687386]">Allocated &amp; Locked</span>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl sm:text-3xl font-extrabold text-[#172033]">
-              {totalReserved.toLocaleString()}
+              {(isDonor ? myTotalReserved : totalReserved).toLocaleString()}
             </span>
             <span className="text-[11px] font-bold text-[#B45309] bg-[#FFFBEB] px-1.5 py-0.5 rounded border border-[#FEF3C7]">
               Reserved
             </span>
           </div>
-          <p className="text-[11px] text-[#8C9BAE] mt-2">Committed to active shelter routes</p>
+          <p className="text-[11px] text-[#8C9BAE] mt-2">
+            {isDonor ? "Reserved for active shelter routes" : "Committed to active shelter routes"}
+          </p>
         </div>
 
         <div className="resq-surface rounded-2xl p-4 sm:p-5 bg-[#FFFFFF]">
-          <span className="text-xs font-semibold text-[#687386]">Verified Stockpoints</span>
+          <span className="text-xs font-semibold text-[#687386]">
+            {isDonor ? "Active Batches" : "Verified Stockpoints"}
+          </span>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl sm:text-3xl font-extrabold text-[#172033]">
-              {supplies.length}
+              {isDonor ? mySupplies.length : supplies.length}
             </span>
             <span className="text-[11px] font-bold text-[#15803D] bg-[#F0FDF4] px-1.5 py-0.5 rounded border border-[#DCFCE7]">
-              Depots
+              {isDonor ? "Batches" : "Depots"}
             </span>
           </div>
-          <p className="text-[11px] text-[#8C9BAE] mt-2">Chennai Emergency Logistics Network</p>
+          <p className="text-[11px] text-[#8C9BAE] mt-2">
+            {isDonor ? "Medical & relief supplies registered" : "Chennai Emergency Logistics Network"}
+          </p>
         </div>
       </div>
 
-      {/* 2. Control Toolbar */}
+      {/* 2. Control Toolbar with Scope Toggle */}
       <div className="resq-surface rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-[#FFFFFF]">
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Scope Toggle for Donors */}
+          {isDonor && (
+            <div className="flex items-center bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-1">
+              <button
+                onClick={() => setScopeFilter("MY_DEPOT")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  scopeFilter === "MY_DEPOT"
+                    ? "bg-[#FFFFFF] text-[#0F766E] shadow-xs border border-[#99F6E4]"
+                    : "text-[#687386] hover:text-[#172033]"
+                }`}
+              >
+                My Depot Stock ({mySupplies.length})
+              </button>
+              <button
+                onClick={() => setScopeFilter("ALL")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  scopeFilter === "ALL"
+                    ? "bg-[#FFFFFF] text-[#172033] shadow-xs border border-[#E7EAF0]"
+                    : "text-[#687386] hover:text-[#172033]"
+                }`}
+              >
+                All Depots ({supplies.length})
+              </button>
+            </div>
+          )}
           <div className="relative min-w-[200px] sm:min-w-[260px]">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#8C9BAE]" />
             <input
@@ -179,13 +406,15 @@ export const SupplyInventoryTab: React.FC<SupplyInventoryTabProps> = ({
           </select>
         </div>
 
-        <button
-          onClick={() => setShowModal(true)}
-          className="px-4 py-2 rounded-xl bg-[#172033] hover:bg-[#232F48] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-        >
-          <Plus className="w-4 h-4 text-[#12B8A6]" />
-          <span>Register Supply Offer</span>
-        </button>
+        {!isDonor && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-4 py-2 rounded-xl bg-[#172033] hover:bg-[#232F48] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-[#12B8A6]" />
+            <span>Register Supply Offer</span>
+          </button>
+        )}
       </div>
 
       {/* 3. Supplies Grid */}

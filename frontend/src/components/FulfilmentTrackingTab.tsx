@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { AllocationRecord, UserRole } from "@/types";
 import {
   Truck,
   CheckCircle2,
@@ -21,6 +20,7 @@ import {
   ChevronRight,
   FileText
 } from "lucide-react";
+import { AllocationRecord, UserRole, AuthUser } from "@/types";
 
 interface FulfilmentTrackingTabProps {
   allocations: AllocationRecord[];
@@ -28,6 +28,7 @@ interface FulfilmentTrackingTabProps {
   onConfirmDelivery: (allocId: string, receivedQty: number, notes?: string) => Promise<void>;
   onCancelAllocation: (allocId: string, reason: string) => Promise<void>;
   currentRole: UserRole;
+  authUser?: AuthUser | null;
 }
 
 export const FulfilmentTrackingTab: React.FC<FulfilmentTrackingTabProps> = ({
@@ -36,16 +37,35 @@ export const FulfilmentTrackingTab: React.FC<FulfilmentTrackingTabProps> = ({
   onConfirmDelivery,
   onCancelAllocation,
   currentRole,
+  authUser,
 }) => {
+  const isRequester = currentRole === "REQUESTER";
+  const isDonor = currentRole === "DONOR";
   const [activeAlloc, setActiveAlloc] = useState<AllocationRecord | null>(null);
   const [actionType, setActionType] = useState<"DISPATCH" | "CONFIRM" | "CANCEL" | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [scopeFilter, setScopeFilter] = useState<"MY_ITEMS" | "ALL">(
+    isRequester || isDonor ? "MY_ITEMS" : "ALL"
+  );
 
   // Form Inputs
   const [actionQty, setActionQty] = useState<number>(0);
   const [notes, setNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Check if an allocation is relevant to requester or donor
+  const isRelevantToUser = (a: AllocationRecord) => {
+    if (isRequester) {
+      // Matches St. Jude shelter requests REQ-101 or REQ-104 or user uid
+      return a.request_id === "REQ-101" || a.request_id === "REQ-104" || a.request_id.includes(authUser?.uid || "REQ-USR-1");
+    }
+    if (isDonor) {
+      // Matches Apex Pharma supplies SUP-202 or user uid
+      return a.supply_id === "SUP-202" || a.supply_id.includes(authUser?.uid || "DONOR-USR-2");
+    }
+    return true;
+  };
 
   const handleOpenAction = (alloc: AllocationRecord, type: "DISPATCH" | "CONFIRM" | "CANCEL") => {
     setActiveAlloc(alloc);
@@ -55,7 +75,7 @@ export const FulfilmentTrackingTab: React.FC<FulfilmentTrackingTabProps> = ({
       setNotes("Loaded on relief logistics vehicle");
     } else if (type === "CONFIRM") {
       setActionQty(alloc.dispatched_quantity || alloc.approved_quantity);
-      setNotes("");
+      setNotes(isRequester ? `Received at ${authUser?.organisationName || "St. Jude Shelter"} - Verified by ${authUser?.displayName || "Dr. Suresh Kumar"}` : "");
     } else {
       setNotes("Operational cancellation authorized by coordinator");
     }
@@ -82,6 +102,10 @@ export const FulfilmentTrackingTab: React.FC<FulfilmentTrackingTabProps> = ({
   };
 
   const filteredAllocations = allocations.filter((a) => {
+    if (scopeFilter === "MY_ITEMS" && !isRelevantToUser(a)) {
+      return false;
+    }
+
     const matchesFilter =
       statusFilter === "ALL"
         ? true
@@ -105,6 +129,98 @@ export const FulfilmentTrackingTab: React.FC<FulfilmentTrackingTabProps> = ({
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Role-Specific Portal Header for REQUESTER */}
+      {isRequester && (
+        <div className="rounded-2xl p-5 bg-gradient-to-r from-[#FFFBEB] via-[#FEF3C7]/40 to-[#FFFFFF] border border-[#FDE68A] shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-[#D97706] text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Truck className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] uppercase tracking-wide">
+                  Incoming Relief Delivery Portal
+                </span>
+                <h2 className="text-base sm:text-lg font-extrabold text-[#172033] mt-1">
+                  Deliveries for {authUser?.organisationName || "St. Jude Relief Shelter"}
+                </h2>
+                <p className="text-xs text-[#687386]">
+                  Track transit vehicles en route to your shelter and sign off delivery upon receipt
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center bg-[#FFFFFF] border border-[#FDE68A] rounded-xl p-1 shrink-0">
+              <button
+                onClick={() => setScopeFilter("MY_ITEMS")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  scopeFilter === "MY_ITEMS"
+                    ? "bg-[#FEF3C7] text-[#92400E] shadow-2xs"
+                    : "text-[#687386] hover:text-[#172033]"
+                }`}
+              >
+                My Shelter Consignments
+              </button>
+              <button
+                onClick={() => setScopeFilter("ALL")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  scopeFilter === "ALL"
+                    ? "bg-[#FEF3C7] text-[#92400E] shadow-2xs"
+                    : "text-[#687386] hover:text-[#172033]"
+                }`}
+              >
+                All Consignments
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role-Specific Portal Header for DONOR */}
+      {isDonor && (
+        <div className="rounded-2xl p-5 bg-gradient-to-r from-[#F0FDFA] via-[#CCFBF1]/40 to-[#FFFFFF] border border-[#99F6E4] shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-[#0F766E] text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Package className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#CCFBF1] text-[#0F766E] border border-[#99F6E4] uppercase tracking-wide">
+                  Outbound Donor Consignments
+                </span>
+                <h2 className="text-base sm:text-lg font-extrabold text-[#172033] mt-1">
+                  Dispatches Sourced from {authUser?.organisationName || "Apex Pharma Humanitarian Donation"}
+                </h2>
+                <p className="text-xs text-[#687386]">
+                  Monitor your donated relief supplies reaching flood victims across disaster shelters
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center bg-[#FFFFFF] border border-[#99F6E4] rounded-xl p-1 shrink-0">
+              <button
+                onClick={() => setScopeFilter("MY_ITEMS")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  scopeFilter === "MY_ITEMS"
+                    ? "bg-[#CCFBF1] text-[#0F766E] shadow-2xs"
+                    : "text-[#687386] hover:text-[#172033]"
+                }`}
+              >
+                My Outbound Goods
+              </button>
+              <button
+                onClick={() => setScopeFilter("ALL")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  scopeFilter === "ALL"
+                    ? "bg-[#CCFBF1] text-[#0F766E] shadow-2xs"
+                    : "text-[#687386] hover:text-[#172033]"
+                }`}
+              >
+                All Regional Dispatches
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. Header & Controls */}
       <div className="resq-surface rounded-2xl p-5 bg-[#FFFFFF] flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -114,7 +230,11 @@ export const FulfilmentTrackingTab: React.FC<FulfilmentTrackingTabProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-[#172033] tracking-tight">
-                Consignment Deliveries &amp; Chain of Custody
+                {isRequester
+                  ? "Shelter Delivery Custody & Receipt Verification"
+                  : isDonor
+                  ? "Donation Chain of Custody & Transit"
+                  : "Consignment Deliveries & Chain of Custody"}
               </h2>
               <p className="text-xs text-[#687386]">
                 End-to-end transparent verification from depot reservation to verified recipient receipt
@@ -310,7 +430,7 @@ export const FulfilmentTrackingTab: React.FC<FulfilmentTrackingTabProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {isReserved && (
+                    {isReserved && !isRequester && (
                       <button
                         onClick={() => handleOpenAction(alloc, "DISPATCH")}
                         className="px-3 py-1.5 rounded-lg bg-[#172033] hover:bg-[#232F48] text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -323,14 +443,18 @@ export const FulfilmentTrackingTab: React.FC<FulfilmentTrackingTabProps> = ({
                     {isInTransit && (
                       <button
                         onClick={() => handleOpenAction(alloc, "CONFIRM")}
-                        className="px-3 py-1.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className={`px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                          isRequester
+                            ? "bg-[#D97706] hover:bg-[#B45309] ring-2 ring-amber-400/30"
+                            : "bg-[#16A34A] hover:bg-[#15803D]"
+                        }`}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Confirm Delivery Receipt</span>
+                        <span>{isRequester ? "Sign Off & Confirm Shelter Receipt" : "Confirm Delivery Receipt"}</span>
                       </button>
                     )}
 
-                    {!isDelivered && !isCancelled && (
+                    {!isDelivered && !isCancelled && !isRequester && !isDonor && (
                       <button
                         onClick={() => handleOpenAction(alloc, "CANCEL")}
                         className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#687386] hover:text-[#F04452] hover:bg-[#FEF2F2] transition-colors cursor-pointer"

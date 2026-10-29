@@ -46,7 +46,82 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onCloseMobile,
 }) => {
-  const navItems = [
+  // Role-specific navigation specifications
+  const ROLE_NAV_CONFIG: Record<
+    UserRole,
+    {
+      portalTitle: string;
+      portalBadge: string;
+      portalDesc: string;
+      allowedTabs: string[];
+      customLabels: Record<string, string>;
+    }
+  > = {
+    COORDINATOR: {
+      portalTitle: "Tactical Command HQ",
+      portalBadge: "Coordinator",
+      portalDesc: "Central disaster triage & AI allocation",
+      allowedTabs: [
+        "OVERVIEW",
+        "MAP",
+        "REQUESTS",
+        "SUPPLIES",
+        "ALLOCATIONS",
+        "FULFILMENT",
+        "ANALYTICS",
+        "AUDIT",
+      ],
+      customLabels: {
+        OVERVIEW: "Command Overview",
+        MAP: "Operations Map",
+        REQUESTS: "Shelter Aid Requests",
+        SUPPLIES: "Supply Depots",
+        ALLOCATIONS: "AI Allocation Engine",
+        FULFILMENT: "Deliveries & Tracking",
+        ANALYTICS: "Resource Analytics",
+        AUDIT: "Immutable Audit Ledger",
+      },
+    },
+    REQUESTER: {
+      portalTitle: "Shelter Requester Portal",
+      portalBadge: "Requester",
+      portalDesc: "Submit emergency needs & verify delivery",
+      allowedTabs: ["REQUESTS", "FULFILMENT", "MAP"],
+      customLabels: {
+        REQUESTS: "My Shelter Requests",
+        FULFILMENT: "Incoming Deliveries",
+        MAP: "Shelter & Flood Map",
+      },
+    },
+    DONOR: {
+      portalTitle: "Humanitarian Donor Portal",
+      portalBadge: "Donor",
+      portalDesc: "Pledge supplies & track delivery impact",
+      allowedTabs: ["SUPPLIES", "FULFILMENT", "ANALYTICS", "MAP"],
+      customLabels: {
+        SUPPLIES: "My Depot Inventory",
+        FULFILMENT: "Outbound Dispatches",
+        ANALYTICS: "Donation Impact",
+        MAP: "Depots & Regional Heatmap",
+      },
+    },
+    ADMIN: {
+      portalTitle: "Platform Admin Console",
+      portalBadge: "Administrator",
+      portalDesc: "Organization compliance & system security",
+      allowedTabs: ["ADMIN", "AUDIT", "ANALYTICS", "OVERVIEW"],
+      customLabels: {
+        ADMIN: "Platform Governance",
+        AUDIT: "Immutable Audit Ledger",
+        ANALYTICS: "System Telemetry",
+        OVERVIEW: "Command Overview",
+      },
+    },
+  };
+
+  const currentRoleNav = ROLE_NAV_CONFIG[currentRole] || ROLE_NAV_CONFIG.COORDINATOR;
+
+  const allNavItems = [
     {
       id: "OVERVIEW",
       label: "Overview",
@@ -97,67 +172,99 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: ShieldCheck,
       badge: null,
     },
+    {
+      id: "AUDIT",
+      label: "Audit Ledger",
+      icon: ShieldCheck,
+      badge: null,
+    },
   ];
 
-  const roleLabels: Record<UserRole, { label: string; bg: string; text: string }> = {
-    COORDINATOR: { label: "Coordinator", bg: "bg-[#FEF2F2]", text: "text-[#F04452]" },
-    REQUESTER: { label: "Requester", bg: "bg-[#FFFBEB]", text: "text-[#B45309]" },
-    DONOR: { label: "Donor", bg: "bg-[#F0FDFA]", text: "text-[#0F766E]" },
-    ADMIN: { label: "Admin", bg: "bg-[#F5F3FF]", text: "text-[#7C3AED]" },
+  // Filter items specifically for the active role
+  const navItems = allNavItems
+    .filter((item) => currentRoleNav.allowedTabs.includes(item.id))
+    .map((item) => ({
+      ...item,
+      label: currentRoleNav.customLabels[item.id] || item.label,
+    }));
+
+  const roleLabels: Record<UserRole, { label: string; bg: string; text: string; border: string }> = {
+    COORDINATOR: { label: "Coordinator", bg: "bg-[#FEF2F2]", text: "text-[#F04452]", border: "border-[#FEE2E2]" },
+    REQUESTER: { label: "Requester", bg: "bg-[#FFFBEB]", text: "text-[#B45309]", border: "border-[#FEF3C7]" },
+    DONOR: { label: "Donor", bg: "bg-[#F0FDFA]", text: "text-[#0F766E]", border: "border-[#CCFBF1]" },
+    ADMIN: { label: "Admin", bg: "bg-[#F5F3FF]", text: "text-[#7C3AED]", border: "border-[#EDE9FE]" },
   };
 
   const currentRoleConfig = roleLabels[currentRole] || roleLabels.COORDINATOR;
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-[#FFFFFF] border-r border-[#E7EAF0] text-[#172033] select-none">
-      {/* 1. Brand Logo */}
-      <div className="p-5 flex items-center justify-between border-b border-[#E7EAF0]">
-        <div className="flex items-center gap-3">
-          {/* Custom Emergency-Response Symbol (Distinctive Coral-Red Hex Cross with flow curves) */}
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#F04452] to-[#E02E3D] flex items-center justify-center text-white shadow-sm shadow-red-500/20">
-            <svg
-              className="w-5 h-5 text-white"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 2v20M2 12h20M7 7l10 10M17 7L7 17" opacity="0.35" strokeWidth="1.5" />
-              <path d="M12 4v16M4 12h16" />
-              <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
-            </svg>
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-[17px] tracking-tight text-[#172033]">
-                ResQ<span className="text-[#F04452]">Flow</span>
-              </span>
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#F7F8FA] border border-[#E7EAF0] text-[#687386] tracking-wide uppercase">
-                Command
-              </span>
+      {/* 1. Brand Logo & Role Portal Badge */}
+      <div className="p-4 border-b border-[#E7EAF0] space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Custom Emergency-Response Symbol (Distinctive Coral-Red Hex Cross with flow curves) */}
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#F04452] to-[#E02E3D] flex items-center justify-center text-white shadow-sm shadow-red-500/20 shrink-0">
+              <svg
+                className="w-5 h-5 text-white"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 2v20M2 12h20M7 7l10 10M17 7L7 17" opacity="0.35" strokeWidth="1.5" />
+                <path d="M12 4v16M4 12h16" />
+                <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+              </svg>
             </div>
-            <p className="text-[11px] text-[#687386] font-medium leading-tight">
-              Humanitarian Response
-            </p>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-[17px] tracking-tight text-[#172033]">
+                  ResQ<span className="text-[#F04452]">Flow</span>
+                </span>
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#F7F8FA] border border-[#E7EAF0] text-[#687386] tracking-wide uppercase">
+                  SaaS
+                </span>
+              </div>
+              <p className="text-[11px] text-[#687386] font-medium leading-tight">
+                Disaster Resource Engine
+              </p>
+            </div>
           </div>
+
+          {/* Mobile close button */}
+          <button
+            onClick={onCloseMobile}
+            className="lg:hidden p-1.5 rounded-lg text-[#687386] hover:text-[#172033] hover:bg-[#F7F8FA] transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Mobile close button */}
-        <button
-          onClick={onCloseMobile}
-          className="lg:hidden p-1.5 rounded-lg text-[#687386] hover:text-[#172033] hover:bg-[#F7F8FA] transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Dynamic Role Portal Indicator Header */}
+        <div className={`p-2.5 rounded-xl border ${currentRoleConfig.bg} ${currentRoleConfig.border} transition-all`}>
+          <div className="flex items-center justify-between">
+            <span className={`text-[11px] font-bold uppercase tracking-wider ${currentRoleConfig.text}`}>
+              {currentRoleNav.portalTitle}
+            </span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          </div>
+          <p className="text-[11px] text-[#4A5568] mt-0.5 font-medium line-clamp-1">
+            {currentRoleNav.portalDesc}
+          </p>
+        </div>
       </div>
 
-      {/* 2. Navigation items */}
+      {/* 2. Navigation items - specifically tailored for the active role */}
       <div className="flex-1 py-4 px-3 overflow-y-auto space-y-1">
-        <div className="px-3 mb-2">
-          <span className="text-[11px] font-semibold text-[#8C9BAE] uppercase tracking-wider">
-            Platform Navigation
+        <div className="px-3 mb-2 flex items-center justify-between">
+          <span className="text-[10px] font-bold text-[#8C9BAE] uppercase tracking-wider">
+            {currentRoleConfig.label} Views
+          </span>
+          <span className="text-[10px] font-mono text-[#8C9BAE]">
+            {navItems.length} pages
           </span>
         </div>
 
@@ -183,7 +290,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     isActive ? "text-[#F04452]" : "text-[#687386] group-hover:text-[#172033]"
                   }`}
                 />
-                <span>{item.label}</span>
+                <span className="truncate">{item.label}</span>
               </div>
 
               {item.badge && (
@@ -224,36 +331,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* 3. User & Organization Profile at bottom */}
+      {/* 3. User & Organization Profile at bottom (Role Locked) */}
       <div className="p-3 border-t border-[#E7EAF0] bg-[#FFFFFF]">
-        {/* Persona quick switch buttons */}
-        <div className="mb-3 px-1">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] uppercase font-bold text-[#8C9BAE] tracking-wider">
-              Simulation Role
-            </span>
-            <span className="text-[10px] font-semibold text-[#12B8A6]">Active Persona</span>
-          </div>
-          <div className="grid grid-cols-4 gap-1 p-1 bg-[#F7F8FA] rounded-lg border border-[#E7EAF0]">
-            {(["COORDINATOR", "REQUESTER", "DONOR", "ADMIN"] as UserRole[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => onRoleChange(r)}
-                title={`Switch to ${r} role`}
-                className={`text-[10px] py-1 rounded font-bold transition-all cursor-pointer ${
-                  currentRole === r
-                    ? "bg-[#FFFFFF] text-[#172033] shadow-xs border border-[#E7EAF0]"
-                    : "text-[#687386] hover:text-[#172033]"
-                }`}
-              >
-                {r.slice(0, 4)}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* User Card */}
-        <div className="flex items-center justify-between p-2 rounded-xl bg-[#FAFBFD] border border-[#E7EAF0]">
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#FAFBFD] border border-[#E7EAF0]">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#172033] to-[#2B384E] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
               {authUser?.displayName ? authUser.displayName.charAt(0).toUpperCase() : "P"}

@@ -44,6 +44,51 @@ import { AuditLogTab } from "@/components/AuditLogTab";
 import { NotificationDrawer } from "@/components/NotificationDrawer";
 import { LoginPage } from "@/components/LoginPage";
 
+const DEFAULT_ROLE_PERSONAS: Record<UserRole, AuthUser> = {
+  COORDINATOR: {
+    uid: "coord-priya-01",
+    displayName: "Priya Sharma",
+    email: "coordinator.priya@resqflow.org",
+    role: "COORDINATOR",
+    organisationName: "Coastal Disaster Relief Volunteers",
+  },
+  REQUESTER: {
+    uid: "REQ-USR-1",
+    displayName: "Dr. Suresh Kumar",
+    email: "stjude.shelter@relief.org",
+    role: "REQUESTER",
+    organisationName: "St. Jude Relief Shelter (240 evacuees)",
+  },
+  DONOR: {
+    uid: "DONOR-USR-2",
+    displayName: "Apex Logistics Hub",
+    email: "logistics.apex@donors.org",
+    role: "DONOR",
+    organisationName: "Apex Pharma Humanitarian Donation",
+  },
+  ADMIN: {
+    uid: "admin-anand-01",
+    displayName: "Anand Kumar",
+    email: "admin.anand@resqflow.org",
+    role: "ADMIN",
+    organisationName: "Disaster Tech Operations Authority",
+  },
+};
+
+const ROLE_DEFAULT_TABS: Record<UserRole, string> = {
+  COORDINATOR: "OVERVIEW",
+  REQUESTER: "REQUESTS",
+  DONOR: "SUPPLIES",
+  ADMIN: "ADMIN",
+};
+
+const ROLE_ALLOWED_TABS: Record<UserRole, string[]> = {
+  COORDINATOR: ["OVERVIEW", "MAP", "REQUESTS", "SUPPLIES", "ALLOCATIONS", "FULFILMENT", "ANALYTICS", "AUDIT"],
+  REQUESTER: ["REQUESTS", "FULFILMENT", "MAP"],
+  DONOR: ["SUPPLIES", "FULFILMENT", "ANALYTICS", "MAP"],
+  ADMIN: ["ADMIN", "AUDIT", "ANALYTICS", "OVERVIEW"],
+};
+
 export default function Home() {
   const [currentRole, setCurrentRole] = useState<UserRole>("COORDINATOR");
   const [activeTab, setActiveTab] = useState<string>("OVERVIEW");
@@ -51,14 +96,8 @@ export default function Home() {
   const [isMatchingLoading, setIsMatchingLoading] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
-  // Authentication State - Default to pre-authenticated Coordinator for instant review
-  const [authUser, setAuthUser] = useState<AuthUser | null>({
-    uid: "coord-priya-01",
-    displayName: "Priya Sharma",
-    email: "coordinator.priya@resqflow.org",
-    role: "COORDINATOR",
-    organisationName: "Coastal Disaster Relief Volunteers",
-  });
+  // Authentication State - Default to pre-authenticated Coordinator
+  const [authUser, setAuthUser] = useState<AuthUser | null>(DEFAULT_ROLE_PERSONAS.COORDINATOR);
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
 
   // Core domain states
@@ -89,6 +128,14 @@ export default function Home() {
   ]);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
 
+  // Guard activeTab based on currentRole allowed tabs
+  useEffect(() => {
+    const allowed = ROLE_ALLOWED_TABS[currentRole] || ROLE_ALLOWED_TABS.COORDINATOR;
+    if (!allowed.includes(activeTab)) {
+      setActiveTab(ROLE_DEFAULT_TABS[currentRole] || allowed[0]);
+    }
+  }, [currentRole, activeTab]);
+
   // Check Backend health and retrieve cached auth session on mount
   useEffect(() => {
     let isMounted = true;
@@ -105,6 +152,7 @@ export default function Home() {
           const parsed: AuthUser = JSON.parse(savedUser);
           setAuthUser(parsed);
           setCurrentRole(parsed.role);
+          setActiveTab(ROLE_DEFAULT_TABS[parsed.role] || "OVERVIEW");
         } catch (e) {
           console.error("Failed to parse cached session", e);
         }
@@ -137,19 +185,12 @@ export default function Home() {
     setCurrentRole(user.role);
     setShowLoginModal(false);
 
-    if (user.role === "REQUESTER") {
-      setActiveTab("REQUESTS");
-    } else if (user.role === "DONOR") {
-      setActiveTab("SUPPLIES");
-    } else if (user.role === "COORDINATOR") {
-      setActiveTab("OVERVIEW");
-    } else if (user.role === "ADMIN") {
-      setActiveTab("ADMIN");
-    }
+    const defaultTab = ROLE_DEFAULT_TABS[user.role] || "OVERVIEW";
+    setActiveTab(defaultTab);
 
     addNotification(
       `Welcome, ${user.displayName}!`,
-      `Signed in as ${user.role} (${user.organisationName || "Volunteer"}).`,
+      `Signed in as ${user.role} (${user.organisationName || "Volunteer"}). Loaded specialized ${user.role} pages.`,
       "success"
     );
   };
@@ -172,16 +213,22 @@ export default function Home() {
     addNotification("Scenario Reset", "Disaster scenario demonstration dataset restored.", "info");
   };
 
+  // Instant Persona and Page Switcher
   const handleRoleChange = (role: UserRole) => {
     setCurrentRole(role);
-    if (authUser) {
-      const updated = { ...authUser, role };
-      setAuthUser(updated);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("resqflow_auth_user", JSON.stringify(updated));
-      }
+    const persona = DEFAULT_ROLE_PERSONAS[role];
+    setAuthUser(persona);
+    const targetTab = ROLE_DEFAULT_TABS[role] || "OVERVIEW";
+    setActiveTab(targetTab);
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("resqflow_auth_user", JSON.stringify(persona));
     }
-    addNotification("Persona Switched", `Active operational role set to ${role}.`, "info");
+    addNotification(
+      `${role} Portal Activated`,
+      `Switched to ${persona.displayName} (${persona.organisationName}). Now viewing ${role}-specific pages.`,
+      "info"
+    );
   };
 
   const handleCreateRequest = (newReq: Partial<AidRequest>) => {
@@ -482,8 +529,8 @@ export default function Home() {
     );
   };
 
-  // If user requests login modal
-  if (showLoginModal) {
+  // If user requests login modal or is not authenticated
+  if (showLoginModal || !authUser) {
     return (
       <LoginPage
         onLoginSuccess={handleLoginSuccess}
@@ -523,6 +570,8 @@ export default function Home() {
           onResetDemo={handleResetDemo}
           authUser={authUser}
           currentRole={currentRole}
+          onRoleChange={handleRoleChange}
+          onSignOut={handleSignOut}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
           onOpenLogin={() => setShowLoginModal(true)}
         />
@@ -565,16 +614,21 @@ export default function Home() {
             <div className="space-y-4">
               <div>
                 <h1 className="text-xl sm:text-2xl font-extrabold text-[#172033] tracking-tight">
-                  Shelter Aid Requests
+                  {currentRole === "REQUESTER"
+                    ? "Shelter Aid Requests & Emergency Submissions"
+                    : "Shelter Aid Requests"}
                 </h1>
                 <p className="text-xs text-[#687386]">
-                  Verified relief demands submitted by field shelter leads and community response units
+                  {currentRole === "REQUESTER"
+                    ? "Direct emergency demands from your shelter with automated depot matching and status tracking"
+                    : "Verified relief demands submitted by field shelter leads and community response units"}
                 </p>
               </div>
               <AidRequestsTab
                 requests={requests}
                 onCreateRequest={handleCreateRequest}
                 currentRole={currentRole}
+                authUser={authUser}
               />
             </div>
           )}
@@ -583,16 +637,21 @@ export default function Home() {
             <div className="space-y-4">
               <div>
                 <h1 className="text-xl sm:text-2xl font-extrabold text-[#172033] tracking-tight">
-                  Supply Depot Inventory
+                  {currentRole === "DONOR"
+                    ? "Humanitarian Depot Inventory & Pledges"
+                    : "Supply Depot Inventory"}
                 </h1>
                 <p className="text-xs text-[#687386]">
-                  Verified stockpiles, humanitarian NGO donations, and reserved emergency consignments
+                  {currentRole === "DONOR"
+                    ? "Manage your registered relief goods, shelf-life monitoring, and shelter consignment commitments"
+                    : "Verified stockpiles, humanitarian NGO donations, and reserved emergency consignments"}
                 </p>
               </div>
               <SupplyInventoryTab
                 supplies={supplies}
                 onCreateSupply={handleCreateSupply}
                 currentRole={currentRole}
+                authUser={authUser}
               />
             </div>
           )}
@@ -607,14 +666,29 @@ export default function Home() {
                   Deterministic matching engine with explainable priority scores and transactional reservations
                 </p>
               </div>
-              <AllocationEngineTab
-                requests={requests}
-                supplies={supplies}
-                onRunEngine={handleRunEngine}
-                onApproveAllocation={handleApproveAllocation}
-                matchingResult={matchingResult}
-                isLoading={isMatchingLoading}
-              />
+              {currentRole !== "COORDINATOR" ? (
+                <div className="resq-surface rounded-2xl p-8 text-center bg-[#FFFFFF]">
+                  <h4 className="font-bold text-sm text-[#172033]">Coordinator Clearance Required</h4>
+                  <p className="text-xs text-[#687386] mt-1 mb-4">
+                    The Algorithmic Allocation Engine is restricted to Emergency Tactical Coordinators.
+                  </p>
+                  <button
+                    onClick={() => setActiveTab(currentRole === "REQUESTER" ? "REQUESTS" : "SUPPLIES")}
+                    className="px-4 py-2 rounded-xl bg-[#172033] text-white text-xs font-semibold"
+                  >
+                    Return to {currentRole === "REQUESTER" ? "My Requests" : "My Supplies"}
+                  </button>
+                </div>
+              ) : (
+                <AllocationEngineTab
+                  requests={requests}
+                  supplies={supplies}
+                  onRunEngine={handleRunEngine}
+                  onApproveAllocation={handleApproveAllocation}
+                  matchingResult={matchingResult}
+                  isLoading={isMatchingLoading}
+                />
+              )}
             </div>
           )}
 
@@ -622,10 +696,18 @@ export default function Home() {
             <div className="space-y-4">
               <div>
                 <h1 className="text-xl sm:text-2xl font-extrabold text-[#172033] tracking-tight">
-                  Deliveries &amp; Chain of Custody
+                  {currentRole === "REQUESTER"
+                    ? "Incoming Deliveries & Recipient Sign-Off"
+                    : currentRole === "DONOR"
+                    ? "Outbound Shipments & Donor Impact"
+                    : "Deliveries & Chain of Custody"}
                 </h1>
                 <p className="text-xs text-[#687386]">
-                  Real-time consignment transit tracking, driver dispatches, and recipient delivery receipts
+                  {currentRole === "REQUESTER"
+                    ? "Live verification of incoming relief consignments with official shelter delivery sign-off"
+                    : currentRole === "DONOR"
+                    ? "Real-time tracking of your donated relief supplies reaching flood evacuee shelters"
+                    : "Real-time consignment transit tracking, driver dispatches, and recipient delivery receipts"}
                 </p>
               </div>
               <FulfilmentTrackingTab
@@ -634,6 +716,7 @@ export default function Home() {
                 onConfirmDelivery={handleConfirmDelivery}
                 onCancelAllocation={handleCancelAllocation}
                 currentRole={currentRole}
+                authUser={authUser}
               />
             </div>
           )}

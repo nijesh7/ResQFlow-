@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import { AidRequest, UrgencyLevel, UserRole } from "@/types";
+import React, { useState, useEffect } from "react";
 import {
   Plus,
   Search,
@@ -24,24 +23,31 @@ import {
   Building2,
   ExternalLink
 } from "lucide-react";
+import { AidRequest, UrgencyLevel, UserRole, AuthUser } from "@/types";
 
 interface AidRequestsTabProps {
   requests: AidRequest[];
   onCreateRequest: (req: Partial<AidRequest>) => void;
   currentRole: UserRole;
+  authUser?: AuthUser | null;
 }
 
 export const AidRequestsTab: React.FC<AidRequestsTabProps> = ({
   requests,
   onCreateRequest,
   currentRole,
+  authUser,
 }) => {
+  const isRequester = currentRole === "REQUESTER";
   const [showModal, setShowModal] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [filterUrgency, setFilterUrgency] = useState<string>("ALL");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [filterCategory, setFilterCategory] = useState<string>("ALL");
   const [viewLayout, setViewLayout] = useState<"TABLE" | "CARDS">("TABLE");
+  const [scopeFilter, setScopeFilter] = useState<"MY_SHELTER" | "ALL">(
+    isRequester ? "MY_SHELTER" : "ALL"
+  );
 
   // Form State
   const [category, setCategory] = useState<string>("WATER");
@@ -49,16 +55,28 @@ export const AidRequestsTab: React.FC<AidRequestsTabProps> = ({
   const [qty, setQty] = useState<number>(100);
   const [unit, setUnit] = useState<string>("liters");
   const [urgency, setUrgency] = useState<UrgencyLevel>("CRITICAL");
-  const [shelterName, setShelterName] = useState<string>("");
-  const [address, setAddress] = useState<string>("");
+  const [shelterName, setShelterName] = useState<string>(
+    authUser?.organisationName || "St. Jude Relief Shelter (240 evacuees)"
+  );
+  const [address, setAddress] = useState<string>("Shelter 4B, Riverview Road, Chennai");
   const [hoursNeeded, setHoursNeeded] = useState<number>(12);
+
+  // Auto-sync shelter details if authUser changes
+  useEffect(() => {
+    if (authUser?.organisationName) {
+      setShelterName(authUser.organisationName);
+    }
+    if (isRequester) {
+      setScopeFilter("MY_SHELTER");
+    }
+  }, [authUser, isRequester]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!desc || qty <= 0) return;
 
     onCreateRequest({
-      requester_name: shelterName || "Community Relief Center",
+      requester_name: shelterName || authUser?.organisationName || "Community Relief Center",
       item_category: category,
       description: desc,
       quantity_required: qty,
@@ -77,8 +95,32 @@ export const AidRequestsTab: React.FC<AidRequestsTabProps> = ({
 
     setShowModal(false);
     setDesc("");
-    setShelterName("");
-    setAddress("");
+  };
+
+  const handleQuickPreset = (
+    cat: string,
+    quantity: number,
+    u: string,
+    urg: UrgencyLevel,
+    presetDesc: string
+  ) => {
+    onCreateRequest({
+      requester_name: shelterName || authUser?.organisationName || "St. Jude Relief Shelter (240 evacuees)",
+      item_category: cat,
+      description: presetDesc,
+      quantity_required: quantity,
+      quantity_fulfilled: 0,
+      unit: u,
+      urgency: urg,
+      location: {
+        address: address || "Shelter 4B, Riverview Road, Chennai",
+        lat: 13.0850,
+        lng: 80.2780,
+        approximate: true,
+      },
+      needed_by: new Date(Date.now() + 8 * 3600 * 1000).toISOString(),
+      status: "Submitted",
+    });
   };
 
   const getCategoryIcon = (cat: string) => {
@@ -96,7 +138,19 @@ export const AidRequestsTab: React.FC<AidRequestsTabProps> = ({
     }
   };
 
+  // Check if a request belongs to the active shelter
+  const isMyShelterRequest = (r: AidRequest) => {
+    const shelterKey = (authUser?.organisationName || "St. Jude").toLowerCase();
+    const nameMatch = r.requester_name && r.requester_name.toLowerCase().includes(shelterKey.slice(0, 8));
+    const uidMatch = r.requester_id === authUser?.uid || r.requester_id === "REQ-USR-1";
+    return nameMatch || uidMatch;
+  };
+
+  const myShelterRequests = requests.filter(isMyShelterRequest);
+  const myCriticalCount = myShelterRequests.filter((r) => r.urgency === "CRITICAL").length;
+
   const filtered = requests.filter((r) => {
+    if (scopeFilter === "MY_SHELTER" && !isMyShelterRequest(r)) return false;
     if (filterCategory !== "ALL" && r.item_category.toUpperCase() !== filterCategory) return false;
     if (filterUrgency !== "ALL" && r.urgency !== filterUrgency) return false;
     if (filterStatus !== "ALL" && r.status !== filterStatus) return false;
@@ -114,15 +168,188 @@ export const AidRequestsTab: React.FC<AidRequestsTabProps> = ({
 
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* 1. Header Toolbar */}
+      {/* Role-Specific Portal Header for REQUESTER */}
+      {isRequester ? (
+        <div className="space-y-4">
+          <div className="rounded-2xl p-5 bg-gradient-to-r from-[#FFFBEB] via-[#FEF3C7]/40 to-[#FFFFFF] border border-[#FDE68A] shadow-xs">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#F59E0B] to-[#D97706] text-white flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/20">
+                  <HeartHandshake className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] uppercase tracking-wide">
+                      Shelter Lead Command
+                    </span>
+                    <span className="text-xs text-[#78350F] font-semibold flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5" /> Zone A-4 &bull; Riverview Outpost
+                    </span>
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-extrabold text-[#172033] mt-1">
+                    {authUser?.organisationName || "St. Jude Relief Shelter (240 evacuees)"}
+                  </h2>
+                  <p className="text-xs text-[#687386] font-medium mt-0.5">
+                    Lead Coordinator: <span className="font-semibold text-[#172033]">{authUser?.displayName || "Dr. Suresh Kumar"}</span> &bull; Potable water and medical triage outpost
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-white border border-[#FDE68A] shadow-2xs text-xs">
+                  <div>
+                    <span className="text-[10px] text-[#8C9BAE] uppercase font-bold block">My Shelter Needs</span>
+                    <span className="font-extrabold text-sm text-[#172033]">{myShelterRequests.length} Demands</span>
+                  </div>
+                  <div className="w-px h-7 bg-[#E7EAF0]" />
+                  <div>
+                    <span className="text-[10px] text-[#F04452] uppercase font-bold block">Urgent Action</span>
+                    <span className="font-extrabold text-sm text-[#F04452]">{myCriticalCount} Critical</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShelterName(authUser?.organisationName || "St. Jude Relief Shelter (240 evacuees)");
+                    setShowModal(true);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-[#F04452] hover:bg-[#E02E3D] text-white font-bold text-xs shadow-xs flex items-center gap-2 transition-all cursor-pointer hover:shadow-red-500/20"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Custom Aid Request</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 1-Click Fast Presets Bar to Make Adding Demands Super Easy */}
+          <div className="bg-[#FFFFFF] border border-[#E7EAF0] rounded-2xl p-4 shadow-xs">
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-xs font-bold text-[#172033] flex items-center gap-1.5">
+                <span className="text-amber-500">⚡</span> 1-Click Fast Emergency Presets:
+              </span>
+              <span className="text-[11px] text-[#8C9BAE]">Tap any preset to log a verified need instantly</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickPreset(
+                    "WATER",
+                    400,
+                    "liters",
+                    "CRITICAL",
+                    "Emergency drinking water for evacuees cut off by waterlogging."
+                  )
+                }
+                className="p-3 rounded-xl border border-[#CCFBF1] bg-[#F0FDFA] hover:bg-[#CCFBF1]/60 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2">
+                  <Droplets className="w-4 h-4 text-[#0F766E]" />
+                  <span className="text-xs font-bold text-[#0F766E]">400L Water</span>
+                </div>
+                <span className="text-[10px] text-[#687386] mt-1 block">Critical &bull; Potable drinking</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickPreset(
+                    "FOOD",
+                    150,
+                    "boxes",
+                    "HIGH",
+                    "Ready-to-eat dry rations and meal packs for displaced families."
+                  )
+                }
+                className="p-3 rounded-xl border border-[#FEF3C7] bg-[#FFFBEB] hover:bg-[#FEF3C7]/60 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2">
+                  <UtensilsCrossed className="w-4 h-4 text-[#B45309]" />
+                  <span className="text-xs font-bold text-[#B45309]">150 Food Boxes</span>
+                </div>
+                <span className="text-[10px] text-[#687386] mt-1 block">High urgency &bull; Family meals</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickPreset(
+                    "MEDICINE",
+                    50,
+                    "kits",
+                    "CRITICAL",
+                    "Antiseptic wipes, suture kits, and trauma bandages for triage."
+                  )
+                }
+                className="p-3 rounded-xl border border-[#FEE2E2] bg-[#FEF2F2] hover:bg-[#FEE2E2]/60 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2">
+                  <Pill className="w-4 h-4 text-[#F04452]" />
+                  <span className="text-xs font-bold text-[#F04452]">50 First Aid Kits</span>
+                </div>
+                <span className="text-[10px] text-[#687386] mt-1 block">Critical &bull; Wound triage</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickPreset(
+                    "SHELTER",
+                    30,
+                    "kits",
+                    "NORMAL",
+                    "Heavy duty tarpaulins and waterproof rope for damaged roofs."
+                  )
+                }
+                className="p-3 rounded-xl border border-[#EDE9FE] bg-[#F5F3FF] hover:bg-[#EDE9FE]/60 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2">
+                  <Tent className="w-4 h-4 text-[#7C3AED]" />
+                  <span className="text-xs font-bold text-[#7C3AED]">30 Tarpaulins</span>
+                </div>
+                <span className="text-[10px] text-[#687386] mt-1 block">Normal &bull; Shelter weatherproofing</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* 1. Header Toolbar with Scope Filter */}
       <div className="resq-surface rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-[#FFFFFF]">
-        {/* Left: Filters */}
+        {/* Left: Scope Tabs & Filters */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative min-w-[200px] sm:min-w-[240px]">
+          {/* Scope Toggle for Requesters */}
+          {isRequester && (
+            <div className="flex items-center bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-1">
+              <button
+                onClick={() => setScopeFilter("MY_SHELTER")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  scopeFilter === "MY_SHELTER"
+                    ? "bg-[#FFFFFF] text-[#B45309] shadow-xs border border-[#FDE68A]"
+                    : "text-[#687386] hover:text-[#172033]"
+                }`}
+              >
+                My Shelter Demands ({myShelterRequests.length})
+              </button>
+              <button
+                onClick={() => setScopeFilter("ALL")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  scopeFilter === "ALL"
+                    ? "bg-[#FFFFFF] text-[#172033] shadow-xs border border-[#E7EAF0]"
+                    : "text-[#687386] hover:text-[#172033]"
+                }`}
+              >
+                All Community Demands ({requests.length})
+              </button>
+            </div>
+          )}
+
+          <div className="relative min-w-[180px] sm:min-w-[220px]">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#8C9BAE]" />
             <input
               type="text"
-              placeholder="Filter by shelter, item, or ID..."
+              placeholder="Filter item or ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-[#F7F8FA] border border-[#E7EAF0] text-[#172033] text-xs rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-[#CBD5E1]"
@@ -165,7 +392,7 @@ export const AidRequestsTab: React.FC<AidRequestsTabProps> = ({
           </select>
         </div>
 
-        {/* Right: Layout Toggle & Create Action */}
+        {/* Right: Layout Toggle & Create Action (Only for non-requesters to avoid duplicate button) */}
         <div className="flex items-center gap-2.5 justify-between md:justify-end">
           {/* Table / Cards view switch */}
           <div className="flex items-center bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-0.5">
@@ -189,13 +416,18 @@ export const AidRequestsTab: React.FC<AidRequestsTabProps> = ({
             </button>
           </div>
 
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-4 py-2 rounded-xl bg-[#F04452] hover:bg-[#E02E3D] text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Request</span>
-          </button>
+          {!isRequester && (
+            <button
+              onClick={() => {
+                setShelterName(authUser?.organisationName || "Community Relief Shelter");
+                setShowModal(true);
+              }}
+              className="px-4 py-2 rounded-xl bg-[#F04452] hover:bg-[#E02E3D] text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create Request</span>
+            </button>
+          )}
         </div>
       </div>
 

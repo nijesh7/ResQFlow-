@@ -165,7 +165,84 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Four Premium Metric Cards (Linear / Stripe style, restrained accents, subtle variations) */}
+      {/* 2. Interactive "How ResQFlow Works in 3 Easy Steps" Flow Banner */}
+      <div className="bg-[#FFFFFF] border border-[#E7EAF0] rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3.5">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[#172033] flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#12B8A6]" />
+              Simplified 3-Step Crisis Operations Flow
+            </h2>
+            <p className="text-[11px] text-[#687386] mt-0.5">
+              Click any step below to jump directly to that operation in 1 click
+            </p>
+          </div>
+          <span className="text-[10px] font-semibold text-[#0F766E] bg-[#F0FDFA] px-2 py-0.5 rounded-full border border-[#CCFBF1] self-start sm:self-auto">
+            Interactive Workflow
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Step 1 */}
+          <button
+            onClick={() => onNavigateTab("REQUESTS")}
+            className="p-3.5 rounded-xl border border-[#FEF3C7] bg-[#FFFBEB]/70 hover:bg-[#FEF3C7]/60 text-left transition-all cursor-pointer group flex items-start gap-3"
+          >
+            <div className="w-8 h-8 rounded-lg bg-[#F59E0B] text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+              1
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-[#92400E]">Shelters Post Needs</span>
+                <ChevronRight className="w-3.5 h-3.5 text-[#B45309] group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-[11px] text-[#78350F] mt-0.5 leading-tight">
+                Evacuee camps log water, food, medicine, and tarpaulin demands.
+              </p>
+            </div>
+          </button>
+
+          {/* Step 2 */}
+          <button
+            onClick={() => onNavigateTab("ALLOCATIONS")}
+            className="p-3.5 rounded-xl border border-[#CCFBF1] bg-[#F0FDFA]/70 hover:bg-[#CCFBF1]/60 text-left transition-all cursor-pointer group flex items-start gap-3"
+          >
+            <div className="w-8 h-8 rounded-lg bg-[#12B8A6] text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+              2
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-[#0F766E]">AI Matches Depots</span>
+                <ChevronRight className="w-3.5 h-3.5 text-[#0F766E] group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-[11px] text-[#115E59] mt-0.5 leading-tight">
+                Deterministic engine matches local inventory by distance &amp; urgency.
+              </p>
+            </div>
+          </button>
+
+          {/* Step 3 */}
+          <button
+            onClick={() => onNavigateTab("FULFILMENT")}
+            className="p-3.5 rounded-xl border border-[#EDE9FE] bg-[#F5F3FF]/70 hover:bg-[#EDE9FE]/60 text-left transition-all cursor-pointer group flex items-start gap-3"
+          >
+            <div className="w-8 h-8 rounded-lg bg-[#7C3AED] text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+              3
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-[#6D28D9]">Dispatch &amp; Verify</span>
+                <ChevronRight className="w-3.5 h-3.5 text-[#6D28D9] group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-[11px] text-[#5B21B6] mt-0.5 leading-tight">
+                Drivers transit goods and shelter managers sign off on physical receipt.
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Four Premium Metric Cards (Linear / Stripe style, restrained accents, subtle variations) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Critical Requests (Coral Accent) */}
         <div className="resq-surface-hover rounded-2xl p-4 sm:p-5 flex flex-col justify-between group">
