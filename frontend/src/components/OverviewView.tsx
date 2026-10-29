@@ -28,7 +28,10 @@ import {
   ShieldCheck,
   Cpu,
   MapPin,
-  ExternalLink
+  ExternalLink,
+  HelpCircle,
+  Info,
+  Shield
 } from "lucide-react";
 
 interface OverviewViewProps {
@@ -39,6 +42,7 @@ interface OverviewViewProps {
   onRunEngine: () => Promise<MatchingResult>;
   onNavigateTab: (tabId: string) => void;
   onOpenCreateRequest?: () => void;
+  onOpenHowItWorks?: () => void;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
@@ -49,6 +53,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onRunEngine,
   onNavigateTab,
   onOpenCreateRequest,
+  onOpenHowItWorks,
 }) => {
   const [isRunningAI, setIsRunningAI] = useState(false);
 
@@ -177,9 +182,20 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               Click any step below to jump directly to that operation in 1 click
             </p>
           </div>
-          <span className="text-[10px] font-semibold text-[#0F766E] bg-[#F0FDFA] px-2 py-0.5 rounded-full border border-[#CCFBF1] self-start sm:self-auto">
-            Interactive Workflow
-          </span>
+          <div className="flex items-center gap-2">
+            {onOpenHowItWorks && (
+              <button
+                onClick={onOpenHowItWorks}
+                className="text-[11px] font-bold text-[#0F766E] hover:text-[#0D9488] bg-[#F0FDFA] hover:bg-[#CCFBF1] px-2.5 py-1 rounded-xl border border-[#CCFBF1] transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>Need Help? Plain English Guide</span>
+              </button>
+            )}
+            <span className="text-[10px] font-semibold text-[#0F766E] bg-[#F0FDFA] px-2 py-0.5 rounded-full border border-[#CCFBF1] self-start sm:self-auto hidden sm:inline">
+              Interactive Workflow
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

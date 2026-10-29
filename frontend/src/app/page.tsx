@@ -43,6 +43,8 @@ import { AdminTab } from "@/components/AdminTab";
 import { AuditLogTab } from "@/components/AuditLogTab";
 import { NotificationDrawer } from "@/components/NotificationDrawer";
 import { LoginPage } from "@/components/LoginPage";
+import { QuickHelpBar } from "@/components/QuickHelpBar";
+import { HowItWorksModal } from "@/components/HowItWorksModal";
 
 const DEFAULT_ROLE_PERSONAS: Record<UserRole, AuthUser> = {
   COORDINATOR: {
@@ -99,6 +101,7 @@ export default function Home() {
   // Authentication State - Default to pre-authenticated Coordinator
   const [authUser, setAuthUser] = useState<AuthUser | null>(DEFAULT_ROLE_PERSONAS.COORDINATOR);
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
+  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState<boolean>(false);
 
   // Core domain states
   const [requests, setRequests] = useState<AidRequest[]>(INITIAL_DEMO_REQUESTS);
@@ -557,6 +560,7 @@ export default function Home() {
         availableStockCount={availableStockCount}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
       />
 
       {/* 2. Main Content Layout (Offset by sidebar width on large screens) */}
@@ -574,10 +578,21 @@ export default function Home() {
           onSignOut={handleSignOut}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
           onOpenLogin={() => setShowLoginModal(true)}
+          onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
         />
 
         {/* Dynamic Page Views */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+          {/* Global Quick Action & Role Clarity Bar */}
+          <QuickHelpBar
+            currentRole={currentRole}
+            onRoleChange={handleRoleChange}
+            onNavigateTab={setActiveTab}
+            onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
+            onOpenCreateRequest={() => setActiveTab("REQUESTS")}
+            onOpenCreateSupply={() => setActiveTab("SUPPLIES")}
+          />
+
           {activeTab === "OVERVIEW" && (
             <OverviewView
               requests={requests}
@@ -586,6 +601,7 @@ export default function Home() {
               currentRole={currentRole}
               onRunEngine={handleRunEngine}
               onNavigateTab={setActiveTab}
+              onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
             />
           )}
 
@@ -767,6 +783,15 @@ export default function Home() {
             </div>
           )}
         </main>
+
+        {/* Plain English How It Works Modal */}
+        <HowItWorksModal
+          isOpen={isHowItWorksOpen}
+          onClose={() => setIsHowItWorksOpen(false)}
+          currentRole={currentRole}
+          onSelectRole={handleRoleChange}
+          onNavigateTab={setActiveTab}
+        />
 
         {/* 3. Notification Drawer */}
         <NotificationDrawer

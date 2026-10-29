@@ -5,6 +5,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "ResQFlow | Emergency Resource Allocation Mission Control",
   description: "Intelligent coordination, algorithmic allocation, and transparent tracking of emergency relief supplies.",
+  icons: {
+    icon: "/resqflow-icon.svg",
+    shortcut: "/resqflow-icon.svg",
+    apple: "/resqflow-icon.svg",
+  },
 };
 
 export default function RootLayout({

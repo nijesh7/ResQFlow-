@@ -22,6 +22,7 @@ import {
   UserPlus,
   LogIn
 } from "lucide-react";
+import { ResQLogo } from "./ui/ResQLogo";
 
 interface LoginPageProps {
   onLoginSuccess: (user: AuthUser) => void;
@@ -197,32 +198,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onCancel }
 
       <div className="w-full max-w-2xl bg-[#FFFFFF] border border-[#E7EAF0] rounded-3xl p-6 sm:p-9 shadow-lg shadow-black/5 space-y-6">
         {/* Brand Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-[#F04452] to-[#E02E3D] text-white shadow-md shadow-red-500/20 mb-1">
-            <svg
-              className="w-6 h-6 text-white"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 4v16M4 12h16" />
-              <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
-            </svg>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172033] tracking-tight">
-            {isRegister ? (
-              <>Create a ResQ<span className="text-[#F04452]">Flow</span> Account</>
-            ) : (
-              <>Sign In to ResQ<span className="text-[#F04452]">Flow</span></>
-            )}
-          </h1>
+        <div className="text-center space-y-3">
+          <ResQLogo variant="stacked" size="lg" animated showTagline className="mx-auto mb-1" />
           <p className="text-xs sm:text-sm text-[#687386] max-w-md mx-auto">
             {isRegister
               ? "Register your shelter, relief depot, or crisis unit. Your role determines your access."
-              : "Select your role and authenticate to access your specialized operations portal."}
+              : "Select your role below and sign in to access your specialized crisis operations portal."}
           </p>
         </div>
 

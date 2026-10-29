@@ -16,8 +16,11 @@ import {
   X,
   ExternalLink,
   Flame,
-  LifeBuoy
+  LifeBuoy,
+  HelpCircle,
+  Sparkles
 } from "lucide-react";
+import { ResQLogo } from "./ui/ResQLogo";
 
 interface SidebarProps {
   activeTab: string;
@@ -31,6 +34,7 @@ interface SidebarProps {
   availableStockCount: number;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
+  onOpenHowItWorks?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -45,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   availableStockCount,
   isOpenMobile,
   onCloseMobile,
+  onOpenHowItWorks,
 }) => {
   // Role-specific navigation specifications
   const ROLE_NAV_CONFIG: Record<
@@ -202,42 +207,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* 1. Brand Logo & Role Portal Badge */}
       <div className="p-4 border-b border-[#E7EAF0] space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* Custom Emergency-Response Symbol (Distinctive Coral-Red Hex Cross with flow curves) */}
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#F04452] to-[#E02E3D] flex items-center justify-center text-white shadow-sm shadow-red-500/20 shrink-0">
-              <svg
-                className="w-5 h-5 text-white"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 2v20M2 12h20M7 7l10 10M17 7L7 17" opacity="0.35" strokeWidth="1.5" />
-                <path d="M12 4v16M4 12h16" />
-                <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
-              </svg>
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-[17px] tracking-tight text-[#172033]">
-                  ResQ<span className="text-[#F04452]">Flow</span>
-                </span>
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#F7F8FA] border border-[#E7EAF0] text-[#687386] tracking-wide uppercase">
-                  SaaS
-                </span>
-              </div>
-              <p className="text-[11px] text-[#687386] font-medium leading-tight">
-                Disaster Resource Engine
-              </p>
-            </div>
-          </div>
+          <ResQLogo variant="full" size="sm" animated showTagline badgeText="Live" />
 
           {/* Mobile close button */}
           <button
             onClick={onCloseMobile}
             className="lg:hidden p-1.5 rounded-lg text-[#687386] hover:text-[#172033] hover:bg-[#F7F8FA] transition-colors"
+            aria-label="Close sidebar"
           >
             <X className="w-5 h-5" />
           </button>
@@ -329,6 +305,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
         </div>
+
+        {/* How ResQFlow Works Guide Button */}
+        {onOpenHowItWorks && (
+          <div className="pt-2 px-1">
+            <button
+              onClick={() => {
+                onOpenHowItWorks();
+                onCloseMobile();
+              }}
+              className="w-full p-2.5 rounded-xl border border-[#CCFBF1] bg-gradient-to-r from-[#F0FDFA] to-[#E6FFFA] hover:border-[#99F6E4] text-left transition-all cursor-pointer group flex items-center justify-between shadow-2xs"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-[#0D9488] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-extrabold text-[#0F766E] leading-none">
+                    How ResQFlow Works
+                  </div>
+                  <div className="text-[10px] text-[#115E59] mt-0.5">
+                    Plain English Guide &amp; Tips
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-[#0F766E] group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 3. User & Organization Profile at bottom (Role Locked) */}

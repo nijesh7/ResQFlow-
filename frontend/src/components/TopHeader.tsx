@@ -12,8 +12,11 @@ import {
   HeartHandshake,
   Package,
   UserCheck,
-  LogOut
+  LogOut,
+  HelpCircle,
+  Sparkles
 } from "lucide-react";
+import { ResQLogo } from "./ui/ResQLogo";
 
 interface TopHeaderProps {
   activeTab: string;
@@ -28,6 +31,7 @@ interface TopHeaderProps {
   onToggleMobileSidebar: () => void;
   onGlobalSearch?: (query: string) => void;
   onOpenLogin: () => void;
+  onOpenHowItWorks?: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -43,6 +47,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onToggleMobileSidebar,
   onGlobalSearch,
   onOpenLogin,
+  onOpenHowItWorks,
 }) => {
   const [timeStr, setTimeStr] = useState<string>("");
 
@@ -119,8 +124,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-[#FFFFFF]/95 backdrop-blur-md border-b border-[#E7EAF0] px-4 sm:px-6 flex items-center justify-between transition-colors">
-      {/* Left: Mobile hamburger & Breadcrumb */}
-      <div className="flex items-center gap-3">
+      {/* Left: Mobile hamburger, Mobile Logo & Breadcrumb */}
+      <div className="flex items-center gap-2.5 sm:gap-3">
         <button
           onClick={onToggleMobileSidebar}
           className="lg:hidden p-2 rounded-lg text-[#687386] hover:text-[#172033] hover:bg-[#F7F8FA] transition-colors"
@@ -129,12 +134,20 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <Menu className="w-5 h-5" />
         </button>
 
+        {/* Brand Logo visible on mobile/tablet */}
+        <div className="lg:hidden flex items-center gap-1.5 shrink-0">
+          <ResQLogo variant="icon" size="xs" />
+          <span className="font-extrabold text-xs tracking-tight text-[#172033] sm:inline hidden">
+            ResQ<span className="text-[#F04452]">Flow</span>
+          </span>
+        </div>
+
         <nav className="flex items-center gap-1.5 text-xs text-[#687386] font-medium" aria-label="Breadcrumb">
           <span className="hover:text-[#172033] transition-colors cursor-pointer hidden xl:inline font-semibold text-[#8C9BAE]">
             {currentParent}
           </span>
           <ChevronRight className="w-3.5 h-3.5 text-[#CBD5E1] hidden xl:inline" />
-          <span className="font-bold text-[#172033] truncate max-w-[160px] sm:max-w-none">
+          <span className="font-bold text-[#172033] truncate max-w-[120px] sm:max-w-none">
             {breadcrumb.current}
           </span>
         </nav>
@@ -179,6 +192,19 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             {backendOnline ? "Cloud Sync Active" : "Local Engine"}
           </span>
         </div>
+
+        {/* How It Works Explainer Button */}
+        {onOpenHowItWorks && (
+          <button
+            id="top-header-how-it-works-btn"
+            onClick={onOpenHowItWorks}
+            className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#F0FDFA] hover:bg-[#CCFBF1] border border-[#CCFBF1] text-[#0F766E] transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-2xs"
+            title="Read how ResQFlow works in plain English"
+          >
+            <HelpCircle className="w-4 h-4 text-[#0D9488]" />
+            <span className="hidden md:inline">How It Works</span>
+          </button>
+        )}
 
         {/* Reset Demo Button */}
         <button
