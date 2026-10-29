@@ -510,7 +510,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${currentStatus.bg} ${currentStatus.text}`}>
                       {currentStatus.label}
                     </span>
-                    <div className="text-[10px] text-[#8C9BAE] mt-0.5 font-mono">
+                    <div className="text-[10px] text-[#8C9BAE] mt-0.5 font-mono" suppressHydrationWarning>
                       {alloc.created_at ? new Date(alloc.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently"}
                     </div>
                   </div>

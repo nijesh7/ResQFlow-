@@ -45,6 +45,7 @@ import { NotificationDrawer } from "@/components/NotificationDrawer";
 import { LoginPage } from "@/components/LoginPage";
 import { QuickHelpBar } from "@/components/QuickHelpBar";
 import { HowItWorksModal } from "@/components/HowItWorksModal";
+import { InteractiveTourBanner } from "@/components/InteractiveTourBanner";
 
 const DEFAULT_ROLE_PERSONAS: Record<UserRole, AuthUser> = {
   COORDINATOR: {
@@ -592,6 +593,21 @@ export default function Home() {
             onOpenCreateRequest={() => setActiveTab("REQUESTS")}
             onOpenCreateSupply={() => setActiveTab("SUPPLIES")}
           />
+
+          {/* Interactive Guided Tour & Crisis Lifecycle Simulation */}
+          {activeTab === "OVERVIEW" && (
+            <InteractiveTourBanner
+              currentRole={currentRole}
+              onNavigateTab={setActiveTab}
+              onRoleChange={handleRoleChange}
+              onRunAI={handleRunEngine}
+              onFastTrackDemo={async () => {
+                handleRoleChange("COORDINATOR");
+                await handleRunEngine();
+                setActiveTab("ALLOCATIONS");
+              }}
+            />
+          )}
 
           {activeTab === "OVERVIEW" && (
             <OverviewView

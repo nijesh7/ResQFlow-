@@ -14,7 +14,9 @@ import {
   UserCheck,
   LogOut,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  ChevronDown,
+  Check
 } from "lucide-react";
 import { ResQLogo } from "./ui/ResQLogo";
 
@@ -50,6 +52,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onOpenHowItWorks,
 }) => {
   const [timeStr, setTimeStr] = useState<string>("");
+  const [isRoleMenuOpen, setIsRoleMenuOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -153,17 +156,75 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         </nav>
       </div>
 
-      {/* Middle: Locked Verified Role Badge (No switching to other roles) */}
-      <div className="flex items-center gap-2">
-        <div
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${activeRoleBadge.bg} ${activeRoleBadge.border} ${activeRoleBadge.text} text-xs font-bold shadow-2xs`}
+      {/* Middle: Interactive Role Switcher Dropdown (Easy 1-Click Persona Switch) */}
+      <div className="relative">
+        <button
+          onClick={() => onRoleChange && setIsRoleMenuOpen(!isRoleMenuOpen)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${activeRoleBadge.bg} ${activeRoleBadge.border} ${activeRoleBadge.text} text-xs font-bold shadow-2xs hover:brightness-95 transition-all cursor-pointer`}
+          title="Click to switch persona / active role view"
         >
           <RoleIcon className="w-4 h-4 shrink-0" />
           <span>{activeRoleBadge.label}</span>
           <span className="hidden md:inline font-normal text-[#687386] text-[11px] border-l border-black/10 pl-2">
             {authUser?.organisationName || authUser?.displayName || "Active Session"}
           </span>
-        </div>
+          {onRoleChange && <ChevronDown className="w-3.5 h-3.5 opacity-60 ml-0.5" />}
+        </button>
+
+        {/* Dropdown Menu */}
+        {isRoleMenuOpen && onRoleChange && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setIsRoleMenuOpen(false)}
+            />
+            <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-[#E7EAF0] p-1.5 z-50 animate-fade-in text-[#172033]">
+              <div className="px-3 py-2 border-b border-[#E7EAF0] mb-1">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[#8C9BAE]">
+                  Switch Role / Persona
+                </div>
+                <div className="text-[11px] text-[#687386]">
+                  Instantly test different portal perspectives
+                </div>
+              </div>
+
+              {(["COORDINATOR", "REQUESTER", "DONOR", "ADMIN"] as UserRole[]).map((r) => {
+                const conf = roleBadgeConfig[r];
+                const ItemIcon = conf.icon;
+                const isSelected = currentRole === r;
+
+                return (
+                  <button
+                    key={r}
+                    onClick={() => {
+                      onRoleChange(r);
+                      setIsRoleMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
+                      isSelected
+                        ? `${conf.bg} ${conf.text} font-bold border ${conf.border}`
+                        : "hover:bg-[#F7F8FA] text-[#4A5568]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ItemIcon className="w-4 h-4 shrink-0" />
+                      <div>
+                        <div className="leading-tight">{conf.label}</div>
+                        <div className="text-[10px] text-[#8C9BAE] font-normal leading-tight">
+                          {r === "COORDINATOR" && "Disaster HQ & Triage"}
+                          {r === "REQUESTER" && "Shelters & Evacuee Needs"}
+                          {r === "DONOR" && "Depot Stock & Donations"}
+                          {r === "ADMIN" && "Platform Compliance & Audit"}
+                        </div>
+                      </div>
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Right: Actions, Sync Indicator, Notifications, User Avatar & Sign Out */}
@@ -171,7 +232,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         {/* Live Operations Timestamp */}
         <div className="hidden xl:flex items-center gap-1.5 text-[11px] font-mono text-[#687386] bg-[#F7F8FA] px-2.5 py-1 rounded-lg border border-[#E7EAF0]">
           <span className="w-1.5 h-1.5 rounded-full bg-[#12B8A6] animate-pulse" />
-          <span>{timeStr || "12:00:00 UTC"}</span>
+          <span suppressHydrationWarning>{timeStr || "12:00:00 UTC"}</span>
         </div>
 
         {/* Sync Indicator */}

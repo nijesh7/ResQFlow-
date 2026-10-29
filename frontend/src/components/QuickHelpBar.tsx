@@ -98,10 +98,34 @@ export const QuickHelpBar: React.FC<QuickHelpBarProps> = ({
             </span>
           </div>
 
-          <span className="hidden xl:inline text-xs text-[#8C9BAE]">&bull;</span>
-          <p className="text-xs text-[#687386] line-clamp-1 max-w-xl">
-            {currentConfig.simpleDesc}
-          </p>
+          {/* 1-Click Segmented Persona Switcher */}
+          <div className="flex items-center bg-[#F7F8FA] p-0.5 rounded-xl border border-[#E7EAF0] text-xs">
+            {(
+              [
+                { role: "COORDINATOR", label: "Coordinator", icon: "⚡" },
+                { role: "REQUESTER", label: "Requester", icon: "🆘" },
+                { role: "DONOR", label: "Donor", icon: "📦" },
+                { role: "ADMIN", label: "Admin", icon: "🛡️" },
+              ] as const
+            ).map((item) => {
+              const isSelected = currentRole === item.role;
+              return (
+                <button
+                  key={item.role}
+                  onClick={() => onRoleChange(item.role as UserRole)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    isSelected
+                      ? "bg-white text-[#172033] shadow-xs border border-[#E7EAF0]"
+                      : "text-[#687386] hover:text-[#172033]"
+                  }`}
+                  title={`Switch to ${item.label} view`}
+                >
+                  <span>{item.icon}</span>
+                  <span className="hidden sm:inline">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Right: Quick Launch Shortcuts & Plain English Guide Button */}
