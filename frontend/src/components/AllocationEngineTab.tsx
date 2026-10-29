@@ -10,19 +10,22 @@ import {
   DuplicateFlag
 } from "@/types";
 import {
-  BrainCircuit,
+  Cpu,
   CheckCircle2,
   AlertTriangle,
   Clock,
   MapPin,
   ShieldCheck,
   ChevronRight,
-  TrendingDown,
   Info,
   Calendar,
   Layers,
   ArrowRight,
-  X
+  X,
+  Sparkles,
+  SlidersHorizontal,
+  Check,
+  Ban
 } from "lucide-react";
 
 interface AllocationEngineTabProps {
@@ -60,11 +63,11 @@ export const AllocationEngineTab: React.FC<AllocationEngineTabProps> = ({
     setIsApproving(true);
     try {
       await onApproveAllocation(selectedRec, customQty, overrideReason || undefined);
-      setApprovalSuccess(`Successfully reserved ${customQty} ${selectedRec.unit} for ${selectedRec.requester_name}!`);
+      setApprovalSuccess(`Reserved ${customQty} ${selectedRec.unit} for ${selectedRec.requester_name}!`);
       setTimeout(() => {
         setSelectedRec(null);
         setApprovalSuccess(null);
-      }, 1800);
+      }, 1500);
     } catch (err: any) {
       alert(`Approval error: ${err.message || "Failed to commit allocation"}`);
     } finally {
@@ -72,32 +75,46 @@ export const AllocationEngineTab: React.FC<AllocationEngineTabProps> = ({
     }
   };
 
+  const recommendations = matchingResult?.recommendations || [];
+  const unfulfilled = matchingResult?.unfulfilled_demands || [];
+  const duplicates = matchingResult?.duplicate_flags || [];
+
   return (
-    <div className="space-y-6">
-      {/* Engine Action Banner */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+    <div className="space-y-6 animate-fade-in">
+      {/* 1. Allocation Engine Workspace Header */}
+      <div className="resq-surface rounded-2xl p-5 sm:p-6 bg-[#FFFFFF] flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200 text-teal-700">
-              <BrainCircuit className="w-6 h-6" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#172033] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Cpu className="w-5 h-5 text-[#12B8A6]" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900 tracking-tight">Intelligent Allocation Engine</h3>
-              <p className="text-xs text-slate-500">Deterministic rules-based emergency resource matching with explainable priority scores</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold text-[#172033] tracking-tight">
+                  Algorithmic Allocation Engine
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F0FDFA] text-[#0F766E] border border-[#CCFBF1]">
+                  Deterministic &bull; Explainable
+                </span>
+              </div>
+              <p className="text-xs text-[#687386] mt-0.5">
+                Matches urgent shelter demands with verified stock while preventing inventory deficits
+              </p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-600">
+
+          <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-[#687386]">
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-teal-600" />
-              Active Demands: <strong>{requests.length}</strong>
+              <span className="w-2 h-2 rounded-full bg-[#12B8A6]" />
+              Active Demands: <strong className="text-[#172033]">{requests.length}</strong>
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-sky-600" />
-              Verified Depots: <strong>{supplies.length}</strong>
+              <span className="w-2 h-2 rounded-full bg-[#172033]" />
+              Depots: <strong className="text-[#172033]">{supplies.length}</strong>
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-600" />
-              Guaranteed Non-Negative Inventory
+              <span className="w-2 h-2 rounded-full bg-[#F4AE42]" />
+              Non-Negative Stock Guarantee
             </span>
           </div>
         </div>
@@ -105,38 +122,41 @@ export const AllocationEngineTab: React.FC<AllocationEngineTabProps> = ({
         <button
           onClick={onRunEngine}
           disabled={isLoading}
-          className="w-full md:w-auto px-6 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm shadow-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+          className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-[#F04452] hover:bg-[#E02E3D] text-white font-semibold text-xs sm:text-sm shadow-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
         >
-          <BrainCircuit className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-          {isLoading ? "Running Matching Rules..." : "Execute Allocation Engine"}
+          <Cpu className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+          <span>{isLoading ? "Computing Matches..." : "Run Allocation Engine"}</span>
         </button>
       </div>
 
-      {/* Suspected Duplicate Requests Warning Banner */}
-      {matchingResult && matchingResult.duplicate_flags.length > 0 && (
-        <div className="border border-amber-200 bg-amber-50/70 rounded-2xl p-4 sm:p-5">
-          <div className="flex items-center gap-2.5 text-amber-900 font-bold text-sm mb-1.5">
-            <AlertTriangle className="w-4 h-4 text-amber-700" />
-            <span>Human Verification Required: {matchingResult.duplicate_flags.length} Potential Duplicate Request(s)</span>
+      {/* 2. Suspected Duplicate Requests Warning Banner */}
+      {duplicates.length > 0 && (
+        <div className="resq-surface rounded-2xl p-4 sm:p-5 border-l-4 border-l-[#F4AE42] bg-[#FFFFFF]">
+          <div className="flex items-center gap-2 text-[#B45309] font-bold text-xs sm:text-sm mb-1">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-[#F4AE42]" />
+            <span>Human Verification Required: {duplicates.length} Potential Duplicate Request(s)</span>
           </div>
-          <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+          <p className="text-xs text-[#687386] mb-3">
             Requests are never silently discarded. Highly similar entries are highlighted for human review to prevent allocating duplicate stock.
           </p>
           <div className="space-y-2">
-            {matchingResult.duplicate_flags.map((dup, i) => (
-              <div key={i} className="text-xs bg-white border border-amber-200/80 p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs">
+            {duplicates.map((dup, i) => (
+              <div
+                key={i}
+                className="text-xs bg-[#FAFBFD] border border-[#E7EAF0] p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+              >
                 <div>
-                  <div className="font-semibold text-slate-900">
-                    Request <span className="font-mono text-teal-700">{dup.primary_request_id}</span> &bull; Similar to <span className="font-mono text-amber-700">{dup.duplicate_request_id}</span>
+                  <div className="font-semibold text-[#172033]">
+                    Request <span className="font-mono text-[#0F766E]">{dup.primary_request_id}</span> matches <span className="font-mono text-[#B45309]">{dup.duplicate_request_id}</span>
                   </div>
-                  <ul className="list-disc list-inside text-slate-500 mt-1 space-y-0.5">
+                  <ul className="text-[11px] text-[#687386] mt-0.5 space-y-0.5">
                     {dup.reasons.map((r, ri) => (
-                      <li key={ri}>{r}</li>
+                      <li key={ri}>&bull; {r}</li>
                     ))}
                   </ul>
                 </div>
-                <div className="text-right">
-                  <span className="text-[11px] font-bold px-2 py-1 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                <div className="shrink-0">
+                  <span className="text-[10px] font-bold px-2 py-1 rounded bg-[#FFFBEB] text-[#B45309] border border-[#FEF3C7]">
                     Similarity: {Math.round(dup.similarity_score * 100)}%
                   </span>
                 </div>
@@ -146,243 +166,254 @@ export const AllocationEngineTab: React.FC<AllocationEngineTabProps> = ({
         </div>
       )}
 
-      {/* Recommendations List */}
-      {matchingResult && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h4 className="font-bold text-slate-900 text-sm tracking-tight">Algorithmic Allocation Proposals</h4>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200 font-semibold">
-                {matchingResult.recommendations.length} Matches Found
-              </span>
-            </div>
-            <span className="text-xs text-slate-400">
-              Evaluated at: {new Date(matchingResult.generated_at).toLocaleTimeString()}
+      {/* 3. Recommended Allocations List */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-sm text-[#172033] flex items-center gap-2">
+            <span>Optimized Recommendations</span>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#F0FDFA] text-[#0F766E] border border-[#CCFBF1]">
+              {recommendations.length} Matches Found
             </span>
-          </div>
+          </h3>
+          <span className="text-xs text-[#687386]">
+            Prioritized by urgency, proximity, and depot stock levels
+          </span>
+        </div>
 
-          {matchingResult.recommendations.length === 0 ? (
-            <div className="text-center p-8 border border-slate-200 rounded-2xl bg-white text-slate-500 text-xs shadow-xs">
-              No compatible supply offers currently match open aid requests. Check unfulfilled demands below.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {matchingResult.recommendations.map((rec) => (
+        {recommendations.length === 0 ? (
+          <div className="resq-surface rounded-2xl p-8 text-center bg-[#FFFFFF]">
+            <Cpu className="w-8 h-8 text-[#8C9BAE] mx-auto mb-2 opacity-50" />
+            <h4 className="font-bold text-sm text-[#172033]">No pending recommendations</h4>
+            <p className="text-xs text-[#687386] mt-1 max-w-md mx-auto">
+              Click &quot;Run Allocation Engine&quot; above to evaluate all pending aid demands against current depot inventory.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {recommendations.map((rec) => {
+              const isCritical = rec.request_urgency === "CRITICAL";
+
+              return (
                 <div
                   key={rec.recommendation_id}
-                  className="bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md"
+                  className="resq-surface-hover rounded-2xl p-4 sm:p-5 bg-[#FFFFFF] flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4"
                 >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                    {/* Left Details */}
-                    <div className="space-y-2.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${
-                          rec.request_urgency === "CRITICAL"
-                            ? "bg-red-50 text-red-700 border-red-200"
-                            : rec.request_urgency === "HIGH"
-                            ? "bg-orange-50 text-orange-700 border-orange-200"
-                            : "bg-teal-50 text-teal-700 border-teal-200"
-                        }`}>
-                          {rec.request_urgency} Priority
-                        </span>
+                  {/* Left: Matching Info */}
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-mono font-bold text-[#172033]">
+                        {rec.request_id}
+                      </span>
+                      <ArrowRight className="w-3.5 h-3.5 text-[#8C9BAE]" />
+                      <span className="text-xs font-mono font-bold text-[#0F766E]">
+                        {rec.supply_id}
+                      </span>
 
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                          {rec.item_category}
-                        </span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                          isCritical
+                            ? "bg-[#FEF2F2] text-[#F04452] border border-[#FEE2E2]"
+                            : "bg-[#FFFBEB] text-[#B45309] border border-[#FEF3C7]"
+                        }`}
+                      >
+                        {rec.request_urgency}
+                      </span>
 
-                        {rec.is_partial && (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1">
-                            <TrendingDown className="w-3 h-3 text-amber-600" />
-                            Partial Allocation ({rec.proposed_quantity}/{rec.requested_quantity} {rec.unit})
-                          </span>
-                        )}
-
-                        <span className="text-xs font-mono text-slate-500">
-                          Priority Score: <strong className="text-teal-700">{rec.priority_score} pts</strong>
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-3 text-sm font-bold text-slate-900">
-                        <span>{rec.requester_name}</span>
-                        <ArrowRight className="w-4 h-4 text-slate-400" />
-                        <span className="text-teal-700">{rec.donor_name}</span>
-                      </div>
-
-                      {/* Reasons */}
-                      <div className="space-y-1 mt-2">
-                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block">
-                          Validation & Decision Factors:
-                        </span>
-                        <ul className="text-xs space-y-1 text-slate-600">
-                          {rec.priority_reasons.map((r, ri) => (
-                            <li key={ri} className="flex items-start gap-1.5">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
-                              <span>{r}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#172033] text-white">
+                        Match Score: {rec.priority_score}/100
+                      </span>
                     </div>
 
-                    {/* Right Numbers and Approve Action */}
-                    <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end justify-between gap-3 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-                      <div className="text-left lg:text-right">
-                        <div className="text-xs text-slate-500 font-medium">Proposed Allocation</div>
-                        <div className="text-2xl font-black text-slate-900 tracking-tight">
-                          {rec.proposed_quantity} <span className="text-sm font-normal text-slate-500">{rec.unit}</span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
-                          Residual Depot Stock: <strong className="text-slate-800">{rec.remaining_stock_after} {rec.unit}</strong>
-                        </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-xs text-[#172033]">
+                      <div>
+                        <span className="text-[#8C9BAE] block text-[10px]">Recipient Shelter</span>
+                        <span className="font-semibold">{rec.requester_name}</span>
                       </div>
 
+                      <div>
+                        <span className="text-[#8C9BAE] block text-[10px]">Fulfilling Depot</span>
+                        <span className="font-semibold text-[#0F766E]">{rec.donor_name}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-[#8C9BAE] block text-[10px]">Proposed Quantity</span>
+                        <span className="font-bold text-[#172033]">
+                          {rec.proposed_quantity} / {rec.requested_quantity} {rec.unit}
+                        </span>
+                      </div>
+
+                      {rec.distance_km && (
+                        <div>
+                          <span className="text-[#8C9BAE] block text-[10px]">Transit Distance</span>
+                          <span className="font-mono font-medium">{rec.distance_km} km</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Explainable reasons pills */}
+                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                      {rec.priority_reasons.map((reason, ri) => (
+                        <span
+                          key={ri}
+                          className="text-[10px] px-2 py-0.5 rounded bg-[#FAFBFD] text-[#687386] border border-[#E7EAF0]"
+                        >
+                          &bull; {reason}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Right: Stock Impact & Action */}
+                  <div className="flex items-center lg:flex-col lg:items-end justify-between lg:justify-center gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-[#E7EAF0] shrink-0">
+                    <div className="text-left lg:text-right text-[11px] text-[#687386]">
+                      <span>Remaining in depot: </span>
+                      <strong className="text-[#172033]">
+                        {rec.remaining_stock_after} {rec.unit}
+                      </strong>
+                    </div>
+
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleOpenApproveModal(rec)}
-                        className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-[#12B8A6] hover:bg-[#0D9488] text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                       >
-                        <ShieldCheck className="w-4 h-4" />
-                        Review & Approve
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Review &amp; Approve</span>
                       </button>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-          {/* Unfulfilled Demand Shortages */}
-          {matchingResult.unfulfilled_demands.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs mt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                <h4 className="font-bold text-slate-900 text-sm">Unfulfilled Emergency Demand</h4>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-bold">
-                  {matchingResult.unfulfilled_demands.length} Shortages
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mb-3">
-                Critical relief requests that could not be satisfied due to lack of compatible stock in donor depots.
-              </p>
+      {/* 4. Unfulfilled Demands Section */}
+      {unfulfilled.length > 0 && (
+        <div className="resq-surface rounded-2xl p-5 bg-[#FFFFFF] space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-sm text-[#F04452] flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Unfulfilled Demands ({unfulfilled.length})</span>
+            </h4>
+            <span className="text-xs text-[#687386]">
+              Requires additional inventory registration or donor intake
+            </span>
+          </div>
 
-              <div className="divide-y divide-slate-100">
-                {matchingResult.unfulfilled_demands.map((u, ui) => (
-                  <div key={ui} className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-teal-700 font-semibold">{u.request_id}</span>
-                        <span className="font-bold text-slate-800">{u.item_category}</span>
-                        <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-                          u.urgency === "CRITICAL" ? "bg-red-50 text-red-700 border border-red-200" : "bg-orange-50 text-orange-700 border border-orange-200"
-                        }`}>
-                          {u.urgency}
-                        </span>
-                      </div>
-                      <p className="text-slate-500 mt-0.5">{u.reason}</p>
-                    </div>
-                    <div className="text-left sm:text-right shrink-0">
-                      <span className="font-bold text-amber-700 text-sm">{u.quantity_unfulfilled} {u.unit}</span>
-                      <span className="text-slate-400 block text-[10px]">Unmet Shortage</span>
-                    </div>
-                  </div>
-                ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {unfulfilled.map((uf, i) => (
+              <div
+                key={i}
+                className="p-3.5 rounded-xl bg-[#FEF2F2]/60 border border-[#FEE2E2] text-xs space-y-1"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-[#172033] font-mono">{uf.request_id}</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[#FEF2F2] text-[#F04452]">
+                    {uf.urgency}
+                  </span>
+                </div>
+                <div className="font-medium text-[#172033]">
+                  Shortfall: {uf.quantity_unfulfilled} {uf.unit} of {uf.item_category}
+                </div>
+                <p className="text-[11px] text-[#687386]">{uf.reason}</p>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Approval & Reservation Modal */}
+      {/* 5. Approval & Reservation Modal */}
       {selectedRec && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 bg-[#172033]/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-[#E7EAF0] rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-[#E7EAF0] pb-3">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-teal-600" />
-                <h3 className="font-bold text-slate-900 text-base">Approve & Reserve Allocation</h3>
+                <div className="w-7 h-7 rounded-lg bg-[#F0FDFA] text-[#12B8A6] flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-[#172033] text-base">Approve &amp; Lock Stock</h3>
               </div>
               <button
                 onClick={() => setSelectedRec(null)}
-                className="p-1 rounded-md text-slate-400 hover:text-slate-700"
+                className="p-1 rounded-md text-[#8C9BAE] hover:text-[#172033]"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {approvalSuccess ? (
-              <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-teal-800 text-xs text-center space-y-2">
-                <CheckCircle2 className="w-8 h-8 text-teal-600 mx-auto" />
-                <p className="font-bold text-sm text-slate-900">Stock Reserved Safely</p>
-                <p>{approvalSuccess}</p>
+              <div className="p-4 rounded-xl bg-[#F0FDF4] border border-[#DCFCE7] text-center space-y-1 text-xs">
+                <CheckCircle2 className="w-8 h-8 text-[#16A34A] mx-auto mb-1" />
+                <span className="font-bold text-[#15803D] text-sm block">Allocation Confirmed!</span>
+                <p className="text-[#687386]">{approvalSuccess}</p>
               </div>
             ) : (
-              <>
-                <div className="text-xs space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <div className="space-y-3.5 text-xs">
+                <div className="p-3 rounded-xl bg-[#F7F8FA] border border-[#E7EAF0] space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Request:</span>
-                    <span className="font-semibold text-slate-900">{selectedRec.requester_name}</span>
+                    <span className="text-[#8C9BAE]">Shelter:</span>
+                    <span className="font-semibold text-[#172033]">{selectedRec.requester_name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Donor Depot:</span>
-                    <span className="font-semibold text-slate-900">{selectedRec.donor_name}</span>
+                    <span className="text-[#8C9BAE]">Depot:</span>
+                    <span className="font-semibold text-[#0F766E]">{selectedRec.donor_name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Category & Unit:</span>
-                    <span className="font-semibold text-teal-700">{selectedRec.item_category} ({selectedRec.unit})</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Recommended Quantity:</span>
-                    <span className="font-bold text-slate-900">{selectedRec.proposed_quantity} {selectedRec.unit}</span>
+                    <span className="text-[#8C9BAE]">Item:</span>
+                    <span className="font-semibold text-[#172033]">{selectedRec.item_category}</span>
                   </div>
                 </div>
 
-                {/* Quantity Modifier */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Approved Quantity ({selectedRec.unit})
+                <div>
+                  <label className="block text-[#172033] font-semibold mb-1">
+                    Confirmed Reservation Quantity ({selectedRec.unit})
                   </label>
                   <input
                     type="number"
                     min="1"
-                    max={selectedRec.proposed_quantity}
+                    max={selectedRec.requested_quantity}
                     value={customQty}
-                    onChange={(e) => setCustomQty(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none focus:border-teal-500"
+                    onChange={(e) => setCustomQty(Number(e.target.value))}
+                    className="w-full bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-2.5 text-[#172033] font-bold text-sm focus:outline-none"
                   />
-                  <p className="text-[11px] text-slate-500">
-                    Transactional reservation locks this stock on the server to prevent concurrent coordinators from double-allocating.
-                  </p>
+                  <span className="text-[11px] text-[#8C9BAE] block mt-1">
+                    Safe maximum: {selectedRec.proposed_quantity} {selectedRec.unit} based on current available depot inventory
+                  </span>
                 </div>
 
-                {/* Override Reason */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Coordinator Override Reason (Optional)
+                <div>
+                  <label className="block text-[#172033] font-semibold mb-1">
+                    Override / Verification Rationale (Optional)
                   </label>
-                  <textarea
-                    rows={2}
+                  <input
+                    type="text"
+                    placeholder="e.g. Verified shelter priority via satellite phone"
                     value={overrideReason}
                     onChange={(e) => setOverrideReason(e.target.value)}
-                    placeholder="e.g., Priority verified by direct radio contact with shelter..."
-                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-teal-500"
+                    className="w-full bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-2.5 text-[#172033] focus:outline-none"
                   />
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-2">
+                <div className="pt-2 flex items-center justify-end gap-2 border-t border-[#E7EAF0]">
                   <button
+                    type="button"
                     onClick={() => setSelectedRec(null)}
-                    className="px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-800"
+                    className="px-3.5 py-2 rounded-xl text-[#687386] hover:bg-[#F7F8FA] transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={handleConfirmApproval}
                     disabled={isApproving || customQty <= 0}
-                    className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl bg-[#12B8A6] hover:bg-[#0D9488] text-white font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    {isApproving ? "Reserving Stock..." : "Confirm & Reserve Stock"}
+                    {isApproving ? "Reserving..." : "Confirm & Reserve"}
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>

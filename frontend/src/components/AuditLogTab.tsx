@@ -22,40 +22,48 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({ logs }) => {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-fade-in">
+      {/* 1. Header & Controls */}
+      <div className="resq-surface rounded-2xl p-5 bg-[#FFFFFF] flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <History className="w-5 h-5 text-teal-600" />
-            Immutable Audit Trail & Chain of Custody
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Append-only tamper-evident logs recording every stock reservation, dispatch, delivery confirmation, and manual override.
-          </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#172033] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <History className="w-4 h-4 text-[#12B8A6]" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-[#172033] tracking-tight">
+                Immutable Audit Trail &amp; Chain of Custody
+              </h2>
+              <p className="text-xs text-[#687386]">
+                Append-only cryptographic ledger of stock reservations, dispatches, handoffs, and coordinator overrides
+              </p>
+            </div>
+          </div>
         </div>
-        <span className="text-xs text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-200 font-mono font-semibold">
-          {logs.length} Logged Transactions
-        </span>
+
+        <div className="flex items-center gap-3">
+          <div className="relative min-w-[200px] sm:min-w-[260px]">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#8C9BAE]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by action, actor, or entity..."
+              className="w-full bg-[#F7F8FA] border border-[#E7EAF0] text-[#172033] text-xs rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-[#CBD5E1]"
+            />
+          </div>
+
+          <span className="text-xs text-[#0F766E] bg-[#F0FDFA] px-2.5 py-1.5 rounded-xl border border-[#CCFBF1] font-mono font-semibold whitespace-nowrap">
+            {logs.length} Transactions
+          </span>
+        </div>
       </div>
 
-      {/* Search Input */}
-      <div className="relative max-w-md">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by action, actor, or entity ID..."
-          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all shadow-sm"
-        />
-      </div>
-
-      {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      {/* 2. Audit Trail Table */}
+      <div className="resq-surface rounded-2xl overflow-hidden bg-[#FFFFFF]">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider text-[10px] border-b border-slate-100">
+          <table className="w-full text-left text-xs text-[#172033]">
+            <thead className="bg-[#FAFBFD] text-[#8C9BAE] font-semibold uppercase tracking-wider text-[11px] border-b border-[#E7EAF0]">
               <tr>
                 <th className="py-3 px-4">Timestamp</th>
                 <th className="py-3 px-4">Action</th>
@@ -65,46 +73,50 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({ logs }) => {
                 <th className="py-3 px-4">Coordinator Reason</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[#E7EAF0]">
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400">
+                  <td colSpan={6} className="py-8 text-center text-[#8C9BAE]">
                     No matching audit records found.
                   </td>
                 </tr>
               ) : (
                 filteredLogs.map((log) => (
-                  <tr key={log.audit_id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3 px-4 font-mono text-slate-500 whitespace-nowrap text-[11px]">
-                      {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  <tr key={log.audit_id} className="hover:bg-[#FAFBFD] transition-colors">
+                    <td className="py-3.5 px-4 font-mono text-[#687386] whitespace-nowrap text-[11px]">
+                      {new Date(log.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      })}
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="font-semibold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-md border border-teal-200 text-[11px]">
+                    <td className="py-3.5 px-4">
+                      <span className="font-semibold text-[#172033] bg-[#F7F8FA] px-2 py-0.5 rounded-md border border-[#E7EAF0] text-[11px]">
                         {log.action}
                       </span>
                     </td>
-                    <td className="py-3 px-4 font-semibold text-slate-900">
+                    <td className="py-3.5 px-4 font-semibold text-[#172033]">
                       {log.actor_id}
                     </td>
-                    <td className="py-3 px-4 font-mono text-slate-600 text-[11px]">
-                      <span className="font-bold text-slate-800">{log.entity_type}</span>: {log.entity_id}
+                    <td className="py-3.5 px-4 font-mono text-[#687386] text-[11px]">
+                      <span className="font-bold text-[#172033]">{log.entity_type}</span>: {log.entity_id}
                     </td>
-                    <td className="py-3 px-4 text-slate-600">
+                    <td className="py-3.5 px-4 text-[#687386]">
                       {log.previous_state && log.new_state ? (
                         <span className="flex items-center gap-1.5 font-mono text-[11px]">
-                          <span className="text-slate-500">
+                          <span>
                             Avail: {JSON.stringify(log.previous_state.available_quantity ?? "")}
                           </span>
-                          <ArrowRight className="w-3 h-3 text-teal-600 shrink-0" />
-                          <span className="text-teal-700 font-semibold">
+                          <ArrowRight className="w-3 h-3 text-[#12B8A6] shrink-0" />
+                          <span className="text-[#0F766E] font-semibold">
                             {JSON.stringify(log.new_state.available_quantity ?? log.new_state.status ?? "")}
                           </span>
                         </span>
                       ) : (
-                        <span className="text-slate-400 italic">Record Initialized</span>
+                        <span className="text-[#8C9BAE] italic">Record Initialized</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-slate-500 italic max-w-xs truncate">
+                    <td className="py-3.5 px-4 text-[#687386] italic max-w-xs truncate">
                       {log.reason || "Standard automated protocol"}
                     </td>
                   </tr>

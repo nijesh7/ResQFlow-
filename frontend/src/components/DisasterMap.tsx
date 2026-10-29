@@ -5,7 +5,6 @@ import { AidRequest, SupplyOffer } from "@/types";
 import {
   MapPin,
   Layers,
-  Filter,
   Search,
   Droplets,
   UtensilsCrossed,
@@ -18,7 +17,11 @@ import {
   CheckCircle2,
   AlertTriangle,
   Building2,
-  Package
+  Package,
+  SlidersHorizontal,
+  Compass,
+  ChevronRight,
+  Navigation
 } from "lucide-react";
 
 interface DisasterMapProps {
@@ -26,6 +29,7 @@ interface DisasterMapProps {
   supplies: SupplyOffer[];
   onSelectRequest?: (req: AidRequest) => void;
   onOpenAllocations?: () => void;
+  compactHeight?: boolean;
 }
 
 export const DisasterMap: React.FC<DisasterMapProps> = ({
@@ -33,6 +37,7 @@ export const DisasterMap: React.FC<DisasterMapProps> = ({
   supplies,
   onSelectRequest,
   onOpenAllocations,
+  compactHeight = false,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -42,14 +47,14 @@ export const DisasterMap: React.FC<DisasterMapProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [viewMode, setViewMode] = useState<"MAP" | "LIST">("MAP");
 
-  // Selected item for the right-side detail drawer
+  // Selected item for drawer
   const [selectedItem, setSelectedItem] = useState<{
     type: "REQUEST" | "SUPPLY";
     data: AidRequest | SupplyOffer;
   } | null>(null);
 
   const categories = [
-    { id: "ALL", label: "All Items", icon: Layers },
+    { id: "ALL", label: "All Categories", icon: Layers },
     { id: "WATER", label: "Water", icon: Droplets },
     { id: "FOOD", label: "Food", icon: UtensilsCrossed },
     { id: "MEDICINE", label: "Medicine", icon: Pill },
@@ -98,52 +103,73 @@ export const DisasterMap: React.FC<DisasterMapProps> = ({
         mapInstanceRef.current = null;
       }
 
-      // Default center: Chennai Flood Zone area [13.06, 80.25]
+      // Default center: Chennai Flood & Coastal Relief Zone [13.06, 80.25]
       const map = L.map(mapContainerRef.current, {
-        zoomControl: true,
+        zoomControl: false,
         scrollWheelZoom: true,
       }).setView([13.06, 80.25], 12);
 
+      // Add zoom control top-right for a clean layout
+      L.control.zoom({ position: "topright" }).addTo(map);
+
       mapInstanceRef.current = map;
 
-      // Clean OpenStreetMap tiles
+      // Crisp OpenStreetMap tiles with clean restrained styling
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 18,
+        maxZoom: 19,
       }).addTo(map);
 
-      // Custom Clean Marker Icons
-      const createIcon = (color: string, border: string, text: string) => {
+      // Custom Clean Marker Factory
+      const createMarkerIcon = (
+        bgColor: string,
+        textColor: string,
+        symbol: string,
+        isCritical: boolean = false
+      ) => {
         return L.divIcon({
-          className: "custom-leaflet-marker",
+          className: "custom-resq-marker",
           html: `
-            <div style="
-              background-color: ${color};
-              border: 2px solid ${border};
-              width: 30px;
-              height: 30px;
-              border-radius: 9999px;
-              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 11px;
-              font-weight: 800;
-              color: white;
-              cursor: pointer;
-            ">
-              ${text}
+            <div style="position: relative; cursor: pointer;">
+              ${
+                isCritical
+                  ? `<div style="
+                      position: absolute;
+                      inset: -4px;
+                      border-radius: 9999px;
+                      background-color: rgba(240, 68, 82, 0.3);
+                      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                    "></div>`
+                  : ""
+              }
+              <div style="
+                background-color: ${bgColor};
+                color: ${textColor};
+                border: 2px solid #FFFFFF;
+                box-shadow: 0 4px 10px rgba(23, 32, 51, 0.18), 0 1px 3px rgba(23, 32, 51, 0.08);
+                width: 32px;
+                height: 32px;
+                border-radius: 9999px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 11px;
+                font-weight: 800;
+                transition: transform 0.15s ease;
+              ">
+                ${symbol}
+              </div>
             </div>
           `,
-          iconSize: [30, 30],
-          iconAnchor: [15, 15],
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
         });
       };
 
-      const criticalIcon = createIcon("#dc2626", "#ffffff", "!");
-      const highIcon = createIcon("#ea580c", "#ffffff", "H");
-      const normalIcon = createIcon("#0d9488", "#ffffff", "N");
-      const supplyIcon = createIcon("#0284c7", "#ffffff", "S");
+      const criticalIcon = createMarkerIcon("#F04452", "#FFFFFF", "!", true);
+      const highIcon = createMarkerIcon("#F4AE42", "#FFFFFF", "H");
+      const normalIcon = createMarkerIcon("#12B8A6", "#FFFFFF", "N");
+      const depotIcon = createMarkerIcon("#172033", "#FFFFFF", "D");
 
       // Add Request Markers
       filteredRequests.forEach((req) => {
@@ -167,7 +193,7 @@ export const DisasterMap: React.FC<DisasterMapProps> = ({
       // Add Supply Depot Markers
       filteredSupplies.forEach((sup) => {
         if (sup.location?.lat && sup.location?.lng) {
-          const marker = L.marker([sup.location.lat, sup.location.lng], { icon: supplyIcon }).addTo(map);
+          const marker = L.marker([sup.location.lat, sup.location.lng], { icon: depotIcon }).addTo(map);
 
           marker.on("click", () => {
             setSelectedItem({ type: "SUPPLY", data: sup });
@@ -186,35 +212,38 @@ export const DisasterMap: React.FC<DisasterMapProps> = ({
   }, [viewMode, selectedCategory, selectedUrgency, searchTerm, filteredRequests.length, filteredSupplies.length]);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-      {/* Top Map Control Bar */}
-      <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-teal-50 text-teal-700 border border-teal-200">
-              <MapPin className="w-4 h-4" />
-            </span>
-            <h3 className="font-bold text-slate-900 text-base">Emergency Operations Center</h3>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-              {filteredRequests.length} Needs &bull; {filteredSupplies.length} Depots
-            </span>
+    <div className="resq-surface rounded-2xl overflow-hidden flex flex-col transition-all">
+      {/* 1. Header Toolbar */}
+      <div className="p-3.5 sm:p-4 border-b border-[#E7EAF0] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-[#FFFFFF]">
+        {/* Left: Title & Summary */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#F7F8FA] border border-[#E7EAF0] flex items-center justify-center text-[#F04452]">
+            <MapPin className="w-4 h-4" />
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Geospatial tracking of urgent demand and verified depot supplies &bull; Click any marker to inspect
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-sm text-[#172033]">Operations Map</h3>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#F0FDFA] text-[#0F766E] border border-[#CCFBF1]">
+                {filteredRequests.length} Needs &bull; {filteredSupplies.length} Depots
+              </span>
+            </div>
+            <p className="text-[11px] text-[#687386]">
+              Real-time geospatial distribution of shelter demands and supply clusters
+            </p>
+          </div>
         </div>
 
-        {/* Search, Filter & View Controls */}
-        <div className="flex flex-wrap items-center gap-2.5 text-xs">
-          {/* Search box */}
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+        {/* Right: Search, Filter & View Toggle */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {/* Search */}
+          <div className="relative min-w-[140px] sm:min-w-[180px]">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-[#8C9BAE]" />
             <input
               type="text"
-              placeholder="Search location or ID..."
+              placeholder="Search map..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-500 w-44 sm:w-52"
+              className="w-full bg-[#F7F8FA] border border-[#E7EAF0] text-[#172033] text-xs rounded-lg pl-8 pr-2.5 py-1.5 focus:outline-none focus:border-[#CBD5E1]"
             />
           </div>
 
@@ -222,32 +251,32 @@ export const DisasterMap: React.FC<DisasterMapProps> = ({
           <select
             value={selectedUrgency}
             onChange={(e) => setSelectedUrgency(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:border-teal-500"
+            className="bg-[#F7F8FA] border border-[#E7EAF0] text-[#172033] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none font-medium cursor-pointer"
           >
             <option value="ALL">All Urgencies</option>
-            <option value="CRITICAL">Critical Priority (!)</option>
-            <option value="HIGH">High Priority (H)</option>
-            <option value="NORMAL">Normal Priority (N)</option>
+            <option value="CRITICAL">Critical Only</option>
+            <option value="HIGH">High Urgency</option>
+            <option value="NORMAL">Normal</option>
           </select>
 
-          {/* Map vs List toggle */}
-          <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-0.5">
+          {/* Map/List Toggle */}
+          <div className="flex items-center bg-[#F7F8FA] border border-[#E7EAF0] rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("MAP")}
-              className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                 viewMode === "MAP"
-                  ? "bg-white text-slate-900 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-[#FFFFFF] text-[#172033] shadow-xs"
+                  : "text-[#687386] hover:text-[#172033]"
               }`}
             >
               Map
             </button>
             <button
               onClick={() => setViewMode("LIST")}
-              className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                 viewMode === "LIST"
-                  ? "bg-white text-slate-900 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-[#FFFFFF] text-[#172033] shadow-xs"
+                  : "text-[#687386] hover:text-[#172033]"
               }`}
             >
               List
@@ -256,240 +285,198 @@ export const DisasterMap: React.FC<DisasterMapProps> = ({
         </div>
       </div>
 
-      {/* Category Pills Bar */}
-      <div className="px-4 py-2 bg-slate-50/80 border-b border-slate-200 flex items-center gap-2 overflow-x-auto scrollbar-none">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
-          Category:
-        </span>
-        {categories.map((c) => {
-          const Icon = c.icon;
-          const active = selectedCategory === c.id;
+      {/* 2. Category Filter Pills */}
+      <div className="px-4 py-2 bg-[#FAFBFD] border-b border-[#E7EAF0] flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        {categories.map((cat) => {
+          const Icon = cat.icon;
+          const isSelected = selectedCategory === cat.id;
           return (
             <button
-              key={c.id}
-              onClick={() => setSelectedCategory(c.id)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-                active
-                  ? "bg-teal-600 text-white shadow-xs"
-                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
+                isSelected
+                  ? "bg-[#172033] text-white font-semibold shadow-xs"
+                  : "text-[#687386] hover:text-[#172033] hover:bg-[#F0F2F6]"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
-              <span>{c.label}</span>
+              <span>{cat.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Map + Detail Drawer Layout */}
-      {viewMode === "MAP" ? (
-        <div className="relative flex flex-col md:flex-row h-[520px]">
-          {/* Map Area */}
-          <div className="flex-1 relative h-full">
-            <div ref={mapContainerRef} className="w-full h-full" />
+      {/* 3. Main Map / List View Container */}
+      <div className="relative flex-1">
+        {viewMode === "MAP" ? (
+          <div className="relative w-full">
+            <div
+              ref={mapContainerRef}
+              className={`w-full ${compactHeight ? "h-[380px] lg:h-[420px]" : "h-[500px] lg:h-[580px]"} z-0`}
+            />
 
-            {/* Clean Map Legend */}
-            <div className="absolute bottom-4 left-4 z-20 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl p-3 text-xs shadow-md space-y-1.5 pointer-events-auto">
-              <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider block mb-0.5">
-                Map Markers
+            {/* Compact Map Legend overlay */}
+            <div className="absolute bottom-3 left-3 z-10 bg-[#FFFFFF]/95 backdrop-blur-xs border border-[#E7EAF0] p-2.5 rounded-xl shadow-sm text-xs space-y-1.5 pointer-events-auto">
+              <span className="text-[10px] font-bold text-[#8C9BAE] uppercase tracking-wider block">
+                Map Legend
               </span>
-              <div className="flex items-center gap-2 text-slate-600">
-                <span className="w-3 h-3 rounded-full bg-red-600 border border-white" />
-                <span>Critical Aid Request (!)</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <span className="w-3 h-3 rounded-full bg-orange-500 border border-white" />
-                <span>High Urgency (H)</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <span className="w-3 h-3 rounded-full bg-teal-600 border border-white" />
-                <span>Normal Urgency (N)</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <span className="w-3 h-3 rounded-full bg-sky-600 border border-white" />
-                <span>Verified Supply Depot (S)</span>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-[#4A5568]">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#F04452]" />
+                  <span>Critical Need</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#F4AE42]" />
+                  <span>High Urgency</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#12B8A6]" />
+                  <span>Normal Need</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#172033]" />
+                  <span>Supply Depot</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Right-Side Item Inspection Drawer */}
-          {selectedItem && (
-            <div className="w-full md:w-80 lg:w-96 bg-white border-t md:border-t-0 md:border-l border-slate-200 p-5 flex flex-col justify-between overflow-y-auto shadow-lg z-20 shrink-0">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
-                    selectedItem.type === "REQUEST"
-                      ? "bg-amber-50 text-amber-800 border-amber-200"
-                      : "bg-sky-50 text-sky-800 border-sky-200"
-                  }`}>
-                    {selectedItem.type === "REQUEST" ? "Aid Demand Details" : "Depot Inventory Details"}
-                  </span>
+            {/* Selected Marker Details Drawer */}
+            {selectedItem && (
+              <div className="absolute top-3 right-3 z-20 w-80 sm:w-88 max-w-[calc(100vw-24px)] bg-[#FFFFFF] border border-[#E7EAF0] rounded-xl shadow-lg p-4 animate-fade-in pointer-events-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-[#E7EAF0]">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                        selectedItem.type === "REQUEST"
+                          ? (selectedItem.data as AidRequest).urgency === "CRITICAL"
+                            ? "bg-[#FEF2F2] text-[#F04452] border border-[#FEE2E2]"
+                            : "bg-[#FFFBEB] text-[#B45309] border border-[#FEF3C7]"
+                          : "bg-[#F0FDFA] text-[#0F766E] border border-[#CCFBF1]"
+                      }`}
+                    >
+                      {selectedItem.type === "REQUEST"
+                        ? `${(selectedItem.data as AidRequest).urgency} REQUEST`
+                        : "SUPPLY DEPOT"}
+                    </span>
+                    <span className="text-xs font-mono text-[#8C9BAE]">
+                      {selectedItem.type === "REQUEST"
+                        ? (selectedItem.data as AidRequest).request_id
+                        : (selectedItem.data as SupplyOffer).supply_id}
+                    </span>
+                  </div>
+
                   <button
                     onClick={() => setSelectedItem(null)}
-                    className="p-1 rounded-md text-slate-400 hover:text-slate-700"
+                    className="p-1 rounded-md text-[#8C9BAE] hover:text-[#172033] hover:bg-[#F7F8FA]"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                {selectedItem.type === "REQUEST" ? (
-                  // Request Details View
-                  (() => {
-                    const req = selectedItem.data as AidRequest;
-                    const matchingSupplies = supplies.filter(
-                      (s) => s.item_category.toUpperCase() === req.item_category.toUpperCase() && s.available_quantity > 0
-                    );
+                <div className="py-3 space-y-2.5">
+                  <div>
+                    <h4 className="font-bold text-sm text-[#172033]">
+                      {selectedItem.type === "REQUEST"
+                        ? (selectedItem.data as AidRequest).requester_name
+                        : (selectedItem.data as SupplyOffer).donor_name}
+                    </h4>
+                    <p className="text-xs text-[#687386] mt-0.5">
+                      {selectedItem.type === "REQUEST"
+                        ? (selectedItem.data as AidRequest).description
+                        : (selectedItem.data as SupplyOffer).description}
+                    </p>
+                  </div>
 
-                    return (
-                      <div className="space-y-3.5 text-xs">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-mono text-slate-400 font-semibold">{req.request_id}</span>
-                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${
-                              req.urgency === "CRITICAL"
-                                ? "bg-red-50 text-red-700 border border-red-200"
-                                : req.urgency === "HIGH"
-                                ? "bg-orange-50 text-orange-700 border border-orange-200"
-                                : "bg-teal-50 text-teal-700 border border-teal-200"
-                            }`}>
-                              {req.urgency}
-                            </span>
-                          </div>
-                          <h4 className="font-bold text-sm text-slate-900">{req.requester_name}</h4>
-                          <p className="text-slate-500 mt-1 leading-relaxed">{req.description}</p>
-                        </div>
+                  {/* Quantity & Location Details */}
+                  <div className="grid grid-cols-2 gap-2 bg-[#F7F8FA] p-2.5 rounded-lg border border-[#E7EAF0] text-xs">
+                    <div>
+                      <span className="text-[10px] text-[#8C9BAE] block">
+                        {selectedItem.type === "REQUEST" ? "Required Amount" : "Available Stock"}
+                      </span>
+                      <span className="font-bold text-[#172033] text-sm">
+                        {selectedItem.type === "REQUEST"
+                          ? `${(selectedItem.data as AidRequest).quantity_required} ${(selectedItem.data as AidRequest).unit}`
+                          : `${(selectedItem.data as SupplyOffer).available_quantity} ${(selectedItem.data as SupplyOffer).unit}`}
+                      </span>
+                    </div>
 
-                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Category:</span>
-                            <span className="font-bold text-slate-800">{req.item_category}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Required Quantity:</span>
-                            <span className="font-bold text-slate-900">{req.quantity_required} {req.unit}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Fulfilled So Far:</span>
-                            <span className="font-bold text-teal-700">{req.quantity_fulfilled || 0} {req.unit}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Location Area:</span>
-                            <span className="font-semibold text-slate-800">{req.location?.address || "Grid zone on file"}</span>
-                          </div>
-                        </div>
+                    <div>
+                      <span className="text-[10px] text-[#8C9BAE] block">Category</span>
+                      <span className="font-semibold text-[#172033]">
+                        {selectedItem.data.item_category}
+                      </span>
+                    </div>
+                  </div>
 
-                        {/* Matching Supplies Breakdown */}
-                        <div className="space-y-2 pt-1">
-                          <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 uppercase tracking-wide">
-                            <span>Compatible Depot Supplies:</span>
-                            <span className="font-bold text-teal-700">{matchingSupplies.length} Available</span>
-                          </div>
-                          {matchingSupplies.length === 0 ? (
-                            <p className="text-slate-400 italic text-[11px]">No active depots currently stock this item.</p>
-                          ) : (
-                            <div className="space-y-1.5 max-h-36 overflow-y-auto">
-                              {matchingSupplies.map((s) => (
-                                <div key={s.supply_id} className="p-2 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center text-[11px]">
-                                  <span className="truncate max-w-[160px] font-medium text-slate-700">{s.donor_name}</span>
-                                  <span className="font-bold text-teal-700">{s.available_quantity} {s.unit}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()
-                ) : (
-                  // Supply Details View
-                  (() => {
-                    const sup = selectedItem.data as SupplyOffer;
-                    return (
-                      <div className="space-y-3.5 text-xs">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-mono text-slate-400 font-semibold">{sup.supply_id}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200">
-                              {sup.status}
-                            </span>
-                          </div>
-                          <h4 className="font-bold text-sm text-slate-900">{sup.donor_name}</h4>
-                          <p className="text-slate-500 mt-1 leading-relaxed">{sup.description}</p>
-                        </div>
-
-                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Resource Category:</span>
-                            <span className="font-bold text-slate-800">{sup.item_category}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Available Stock:</span>
-                            <span className="font-bold text-sky-700">{sup.available_quantity} {sup.unit}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Reserved in Transit:</span>
-                            <span className="font-bold text-amber-700">{sup.reserved_quantity} {sup.unit}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Total Registered:</span>
-                            <span className="font-semibold text-slate-900">{sup.total_quantity} {sup.unit}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()
-                )}
-              </div>
-
-              {/* Action Button in Drawer */}
-              {onOpenAllocations && selectedItem.type === "REQUEST" && (
-                <button
-                  onClick={onOpenAllocations}
-                  className="w-full mt-4 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <span>Evaluate in Allocation Engine</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Clean List Mode */
-        <div className="p-4 sm:p-6 divide-y divide-slate-100 max-h-[520px] overflow-y-auto">
-          <div className="space-y-2">
-            {filteredRequests.map((r) => (
-              <div
-                key={r.request_id}
-                onClick={() => setSelectedItem({ type: "REQUEST", data: r })}
-                className="p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-              >
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono font-semibold text-slate-400">{r.request_id}</span>
-                    <span className="text-sm font-bold text-slate-900">{r.requester_name}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                      r.urgency === "CRITICAL"
-                        ? "bg-red-50 text-red-700 border-red-200"
-                        : r.urgency === "HIGH"
-                        ? "bg-orange-50 text-orange-700 border-orange-200"
-                        : "bg-teal-50 text-teal-700 border-teal-200"
-                    }`}>
-                      {r.urgency}
+                  {/* Privacy safeguarded Location */}
+                  <div className="text-[11px] text-[#687386] flex items-center gap-1.5">
+                    <Navigation className="w-3.5 h-3.5 text-[#8C9BAE] shrink-0" />
+                    <span className="truncate">
+                      {selectedItem.data.location?.address || "Coastal Ward Relief Outpost (Approximate Area)"}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">
-                    Needs <strong className="text-slate-800">{r.quantity_required} {r.unit}</strong> of {r.item_category} &bull; {r.location?.address || "Grid zone on file"}
+                </div>
+
+                {/* Direct Action */}
+                <div className="pt-2 border-t border-[#E7EAF0] flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (onOpenAllocations) onOpenAllocations();
+                    }}
+                    className="w-full py-2 px-3 rounded-lg bg-[#F04452] hover:bg-[#E02E3D] text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  >
+                    <span>Match with Allocation Engine</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* List Mode Alternative */
+          <div className="p-4 divide-y divide-[#E7EAF0] max-h-[500px] overflow-y-auto">
+            <h4 className="text-xs font-bold text-[#8C9BAE] uppercase mb-2">
+              Geo-located Requests ({filteredRequests.length})
+            </h4>
+            {filteredRequests.map((req) => (
+              <div
+                key={req.request_id}
+                onClick={() => {
+                  setSelectedItem({ type: "REQUEST", data: req });
+                  setViewMode("MAP");
+                }}
+                className="py-2.5 flex items-center justify-between hover:bg-[#F7F8FA] px-2 rounded-lg cursor-pointer transition-colors"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-[#172033]">{req.requester_name}</span>
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                        req.urgency === "CRITICAL"
+                          ? "bg-[#FEF2F2] text-[#F04452]"
+                          : "bg-[#FFFBEB] text-[#B45309]"
+                      }`}
+                    >
+                      {req.urgency}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#687386]">
+                    {req.quantity_required} {req.unit} &bull; {req.item_category}
                   </p>
                 </div>
-                <div className="text-left sm:text-right shrink-0">
-                  <span className="text-xs font-semibold text-teal-700">{r.status}</span>
+                <div className="text-right">
+                  <span className="text-xs font-mono text-[#8C9BAE]">{req.request_id}</span>
+                  <div className="text-[10px] text-[#12B8A6] font-medium flex items-center gap-1 justify-end">
+                    <span>View on Map</span>
+                    <ChevronRight className="w-3 h-3" />
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

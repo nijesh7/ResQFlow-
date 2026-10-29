@@ -16,7 +16,13 @@ import {
   UtensilsCrossed,
   Pill,
   Tent,
-  Layers
+  Layers,
+  Table as TableIcon,
+  LayoutGrid,
+  ChevronRight,
+  ShieldCheck,
+  Building2,
+  ExternalLink
 } from "lucide-react";
 
 interface AidRequestsTabProps {
@@ -34,13 +40,15 @@ export const AidRequestsTab: React.FC<AidRequestsTabProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [filterUrgency, setFilterUrgency] = useState<string>("ALL");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [filterCategory, setFilterCategory] = useState<string>("ALL");
+  const [viewLayout, setViewLayout] = useState<"TABLE" | "CARDS">("TABLE");
 
   // Form State
   const [category, setCategory] = useState<string>("WATER");
   const [desc, setDesc] = useState<string>("");
   const [qty, setQty] = useState<number>(100);
   const [unit, setUnit] = useState<string>("liters");
-  const [urgency, setUrgency] = useState<UrgencyLevel>("HIGH");
+  const [urgency, setUrgency] = useState<UrgencyLevel>("CRITICAL");
   const [shelterName, setShelterName] = useState<string>("");
   const [address, setAddress] = useState<string>("");
   const [hoursNeeded, setHoursNeeded] = useState<number>(12);
@@ -61,17 +69,35 @@ export const AidRequestsTab: React.FC<AidRequestsTabProps> = ({
         address: address || "Disaster Relief Outpost, Chennai",
         lat: 13.06 + (Math.random() - 0.5) * 0.08,
         lng: 80.24 + (Math.random() - 0.5) * 0.08,
-        approximate: true
+        approximate: true,
       },
       needed_by: new Date(Date.now() + hoursNeeded * 3600 * 1000).toISOString(),
-      status: "Submitted"
+      status: "Submitted",
     });
 
     setShowModal(false);
     setDesc("");
+    setShelterName("");
+    setAddress("");
+  };
+
+  const getCategoryIcon = (cat: string) => {
+    switch (cat.toUpperCase()) {
+      case "WATER":
+        return Droplets;
+      case "FOOD":
+        return UtensilsCrossed;
+      case "MEDICINE":
+        return Pill;
+      case "SHELTER":
+        return Tent;
+      default:
+        return Layers;
+    }
   };
 
   const filtered = requests.filter((r) => {
+    if (filterCategory !== "ALL" && r.item_category.toUpperCase() !== filterCategory) return false;
     if (filterUrgency !== "ALL" && r.urgency !== filterUrgency) return false;
     if (filterStatus !== "ALL" && r.status !== filterStatus) return false;
     if (searchTerm) {
@@ -79,43 +105,57 @@ export const AidRequestsTab: React.FC<AidRequestsTabProps> = ({
       return (
         r.description.toLowerCase().includes(term) ||
         r.item_category.toLowerCase().includes(term) ||
-        (r.requester_name && r.requester_name.toLowerCase().includes(term))
+        (r.requester_name && r.requester_name.toLowerCase().includes(term)) ||
+        r.request_id.toLowerCase().includes(term)
       );
     }
     return true;
   });
 
   return (
-    <div className="space-y-6">
-      {/* Control & Filter Header */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+    <div className="space-y-5 animate-fade-in">
+      {/* 1. Header Toolbar */}
+      <div className="resq-surface rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-[#FFFFFF]">
+        {/* Left: Filters */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative min-w-[200px] sm:min-w-[240px]">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#8C9BAE]" />
             <input
               type="text"
-              placeholder="Search by shelter or item..."
+              placeholder="Filter by shelter, item, or ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-teal-500 w-52 sm:w-64 font-medium"
+              className="w-full bg-[#F7F8FA] border border-[#E7EAF0] text-[#172033] text-xs rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-[#CBD5E1]"
             />
           </div>
 
           <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="bg-[#F7F8FA] border border-[#E7EAF0] text-[#172033] text-xs font-semibold rounded-xl px-3 py-2 focus:outline-none cursor-pointer"
+          >
+            <option value="ALL">All Categories</option>
+            <option value="WATER">Water</option>
+            <option value="FOOD">Food</option>
+            <option value="MEDICINE">Medicine</option>
+            <option value="SHELTER">Shelter</option>
+          </select>
+
+          <select
             value={filterUrgency}
             onChange={(e) => setFilterUrgency(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl px-3 py-2 focus:outline-none focus:border-teal-500"
+            className="bg-[#F7F8FA] border border-[#E7EAF0] text-[#172033] text-xs font-semibold rounded-xl px-3 py-2 focus:outline-none cursor-pointer"
           >
             <option value="ALL">All Urgencies</option>
-            <option value="CRITICAL">Critical (!)</option>
-            <option value="HIGH">High (H)</option>
-            <option value="NORMAL">Normal (N)</option>
+            <option value="CRITICAL">Critical</option>
+            <option value="HIGH">High</option>
+            <option value="NORMAL">Normal</option>
           </select>
 
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl px-3 py-2 focus:outline-none focus:border-teal-500"
+            className="bg-[#F7F8FA] border border-[#E7EAF0] text-[#172033] text-xs font-semibold rounded-xl px-3 py-2 focus:outline-none cursor-pointer"
           >
             <option value="ALL">All Statuses</option>
             <option value="Submitted">Submitted</option>
@@ -125,207 +165,365 @@ export const AidRequestsTab: React.FC<AidRequestsTabProps> = ({
           </select>
         </div>
 
-        <button
-          onClick={() => setShowModal(true)}
-          className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Aid Request</span>
-        </button>
-      </div>
-
-      {/* Requests Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((req) => {
-          const pct = Math.min(100, Math.round(((req.quantity_fulfilled || 0) / req.quantity_required) * 100));
-
-          return (
-            <div
-              key={req.request_id}
-              className="bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-4 transition-all hover:shadow-md"
+        {/* Right: Layout Toggle & Create Action */}
+        <div className="flex items-center gap-2.5 justify-between md:justify-end">
+          {/* Table / Cards view switch */}
+          <div className="flex items-center bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-0.5">
+            <button
+              onClick={() => setViewLayout("TABLE")}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                viewLayout === "TABLE" ? "bg-[#FFFFFF] text-[#172033] shadow-xs" : "text-[#8C9BAE] hover:text-[#172033]"
+              }`}
+              title="Table View"
             >
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
-                    req.urgency === "CRITICAL"
-                      ? "bg-red-50 text-red-700 border-red-200"
-                      : req.urgency === "HIGH"
-                      ? "bg-orange-50 text-orange-700 border-orange-200"
-                      : "bg-teal-50 text-teal-700 border-teal-200"
-                  }`}>
-                    {req.urgency} Urgency
-                  </span>
-                  <span className="text-[11px] font-mono text-slate-400 font-medium">
-                    {req.request_id}
-                  </span>
-                </div>
+              <TableIcon className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewLayout("CARDS")}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                viewLayout === "CARDS" ? "bg-[#FFFFFF] text-[#172033] shadow-xs" : "text-[#8C9BAE] hover:text-[#172033]"
+              }`}
+              title="Grid Cards View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
 
-                <h4 className="text-sm font-bold text-slate-900 mb-1 line-clamp-1">
-                  {req.requester_name || "Community Shelter"}
-                </h4>
-                <p className="text-xs text-slate-500 line-clamp-2 mb-3 leading-relaxed">
-                  {req.description}
-                </p>
-
-                <div className="flex items-center gap-2 text-xs text-slate-600 mb-1">
-                  <MapPin className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                  <span className="truncate">{req.location?.address || "Grid zone on file"}</span>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-slate-600">
-                  <Clock className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                  <span>Needed by: {req.needed_by ? new Date(req.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "ASAP"}</span>
-                </div>
-              </div>
-
-              {/* Progress & Status */}
-              <div className="pt-3 border-t border-slate-100 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium">Fulfilled:</span>
-                  <span className="font-bold text-slate-900">
-                    {req.quantity_fulfilled || 0} / {req.quantity_required} {req.unit} ({pct}%)
-                  </span>
-                </div>
-
-                <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                  <div
-                    className={`h-full transition-all ${pct >= 100 ? "bg-emerald-600" : pct > 0 ? "bg-teal-600" : "bg-slate-300"}`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] pt-1">
-                  <span className="text-slate-400 font-medium">Status</span>
-                  <span className="font-semibold text-teal-700">{req.status}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-4 py-2 rounded-xl bg-[#F04452] hover:bg-[#E02E3D] text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Request</span>
+          </button>
+        </div>
       </div>
 
-      {/* Modern Request Modal */}
+      {/* 2. Main Data Table or Cards View */}
+      {viewLayout === "TABLE" ? (
+        <div className="resq-surface rounded-2xl overflow-hidden bg-[#FFFFFF]">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#FAFBFD] border-b border-[#E7EAF0] text-[11px] font-semibold text-[#8C9BAE] uppercase tracking-wider">
+                  <th className="py-3 px-4">Request ID</th>
+                  <th className="py-3 px-4">Shelter / Location</th>
+                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4">Urgency</th>
+                  <th className="py-3 px-4">Required Qty</th>
+                  <th className="py-3 px-4">Fulfilled</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Required By</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E7EAF0] text-xs">
+                {filtered.map((req) => {
+                  const Icon = getCategoryIcon(req.item_category);
+                  const isCritical = req.urgency === "CRITICAL";
+                  const pct = Math.min(
+                    100,
+                    Math.round(((req.quantity_fulfilled || 0) / req.quantity_required) * 100)
+                  );
+
+                  return (
+                    <tr
+                      key={req.request_id}
+                      className="hover:bg-[#FAFBFD] transition-colors group"
+                    >
+                      <td className="py-3.5 px-4 font-mono font-medium text-[#172033]">
+                        {req.request_id}
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <div className="font-semibold text-[#172033]">
+                          {req.requester_name || "Community Relief Camp"}
+                        </div>
+                        <div className="text-[11px] text-[#687386] line-clamp-1 max-w-xs">
+                          {req.description}
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#F7F8FA] border border-[#E7EAF0] text-[#172033] font-medium text-[11px]">
+                          <Icon className="w-3.5 h-3.5 text-[#687386]" />
+                          {req.item_category}
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            isCritical
+                              ? "bg-[#FEF2F2] text-[#F04452] border border-[#FEE2E2]"
+                              : req.urgency === "HIGH"
+                              ? "bg-[#FFFBEB] text-[#B45309] border border-[#FEF3C7]"
+                              : "bg-[#F0FDFA] text-[#0F766E] border border-[#CCFBF1]"
+                          }`}
+                        >
+                          {req.urgency}
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-4 font-semibold text-[#172033]">
+                        {req.quantity_required} {req.unit}
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-1.5 rounded-full bg-[#E7EAF0] overflow-hidden">
+                            <div
+                              className={`h-full ${
+                                pct >= 100 ? "bg-[#12B8A6]" : pct > 0 ? "bg-[#F4AE42]" : "bg-transparent"
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-[11px] text-[#687386] font-mono">
+                            {pct}%
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`text-[11px] font-semibold ${
+                            req.status === "Fulfilled"
+                              ? "text-[#15803D]"
+                              : req.status.includes("Allocated")
+                              ? "text-[#0F766E]"
+                              : "text-[#172033]"
+                          }`}
+                        >
+                          {req.status}
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right text-[11px] text-[#687386] font-mono">
+                        {req.needed_by
+                          ? new Date(req.needed_by).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "ASAP"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="p-3 border-t border-[#E7EAF0] bg-[#FAFBFD] flex items-center justify-between text-xs text-[#687386]">
+            <span>Showing {filtered.length} of {requests.length} total aid requests</span>
+            <span>Protected under humanitarian confidentiality guidelines</span>
+          </div>
+        </div>
+      ) : (
+        /* Cards View Alternative */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((req) => {
+            const Icon = getCategoryIcon(req.item_category);
+            const isCritical = req.urgency === "CRITICAL";
+            const pct = Math.min(
+              100,
+              Math.round(((req.quantity_fulfilled || 0) / req.quantity_required) * 100)
+            );
+
+            return (
+              <div
+                key={req.request_id}
+                className="resq-surface-hover rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-3 bg-[#FFFFFF]"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span
+                      className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                        isCritical
+                          ? "bg-[#FEF2F2] text-[#F04452] border border-[#FEE2E2]"
+                          : req.urgency === "HIGH"
+                          ? "bg-[#FFFBEB] text-[#B45309] border border-[#FEF3C7]"
+                          : "bg-[#F0FDFA] text-[#0F766E] border border-[#CCFBF1]"
+                      }`}
+                    >
+                      {req.urgency}
+                    </span>
+                    <span className="text-[11px] font-mono text-[#8C9BAE]">
+                      {req.request_id}
+                    </span>
+                  </div>
+
+                  <h4 className="text-sm font-bold text-[#172033] line-clamp-1 mb-1">
+                    {req.requester_name || "Community Relief Camp"}
+                  </h4>
+                  <p className="text-xs text-[#687386] line-clamp-2 mb-3">
+                    {req.description}
+                  </p>
+
+                  <div className="flex items-center gap-2 text-xs text-[#4A5568] mb-1">
+                    <MapPin className="w-3.5 h-3.5 text-[#8C9BAE] shrink-0" />
+                    <span className="truncate">
+                      {req.location?.address || "Coastal Ward Relief Camp"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-[#E7EAF0] space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#687386]">Fulfilled:</span>
+                    <span className="font-bold text-[#172033]">
+                      {req.quantity_fulfilled || 0} / {req.quantity_required} {req.unit} ({pct}%)
+                    </span>
+                  </div>
+
+                  <div className="w-full h-1.5 rounded-full bg-[#E7EAF0] overflow-hidden">
+                    <div
+                      className={`h-full ${
+                        pct >= 100 ? "bg-[#12B8A6]" : pct > 0 ? "bg-[#F4AE42]" : "bg-transparent"
+                      }`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] pt-1">
+                    <span className="text-[#8C9BAE]">Status</span>
+                    <span className="font-semibold text-[#172033]">{req.status}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 3. Create Aid Request Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-xl space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+        <div className="fixed inset-0 z-50 bg-[#172033]/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-[#E7EAF0] rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-[#E7EAF0] pb-3">
               <div className="flex items-center gap-2">
-                <HeartHandshake className="w-5 h-5 text-teal-600" />
-                <h3 className="font-bold text-slate-900 text-base">Submit Emergency Aid Request</h3>
+                <div className="w-7 h-7 rounded-lg bg-[#FEF2F2] text-[#F04452] flex items-center justify-center">
+                  <HeartHandshake className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-[#172033] text-base">
+                  Submit Shelter Aid Demand
+                </h3>
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-1 rounded-md text-slate-400 hover:text-slate-700"
+                className="p-1 rounded-md text-[#8C9BAE] hover:text-[#172033]"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Shelter / Community Location Name</label>
+                <label className="block text-[#172033] font-semibold mb-1">
+                  Shelter / Camp Location Name
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Ward 4 Coastal Relief Camp"
                   value={shelterName}
                   onChange={(e) => setShelterName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-none focus:border-teal-500 font-medium"
+                  className="w-full bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-2.5 text-[#172033] focus:outline-none focus:border-[#CBD5E1]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Resource Category</label>
+                  <label className="block text-[#172033] font-semibold mb-1">
+                    Resource Category
+                  </label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-none focus:border-teal-500 font-semibold"
+                    className="w-full bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-2.5 text-[#172033] focus:outline-none cursor-pointer"
                   >
                     <option value="WATER">Drinking Water</option>
                     <option value="FOOD">Food / Rations</option>
-                    <option value="MEDICINE">Medical / First Aid</option>
-                    <option value="SHELTER">Shelter / Tarpaulins</option>
-                    <option value="HYGIENE">Sanitation / Hygiene</option>
+                    <option value="MEDICINE">Medical Kits</option>
+                    <option value="SHELTER">Tarpaulins &amp; Tents</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Urgency Level</label>
+                  <label className="block text-[#172033] font-semibold mb-1">Urgency</label>
                   <select
                     value={urgency}
                     onChange={(e) => setUrgency(e.target.value as UrgencyLevel)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-none focus:border-teal-500 font-semibold"
+                    className="w-full bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-2.5 text-[#172033] focus:outline-none cursor-pointer"
                   >
-                    <option value="CRITICAL">Critical (Immediate Danger)</option>
-                    <option value="HIGH">High (Urgent 24h)</option>
-                    <option value="NORMAL">Normal (48h Standard)</option>
+                    <option value="CRITICAL">Critical (Immediate Need)</option>
+                    <option value="HIGH">High Urgency</option>
+                    <option value="NORMAL">Normal Priority</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Quantity Needed</label>
+                  <label className="block text-[#172033] font-semibold mb-1">Required Quantity</label>
                   <input
                     type="number"
                     min="1"
                     required
                     value={qty}
-                    onChange={(e) => setQty(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-none focus:border-teal-500 font-bold"
+                    onChange={(e) => setQty(Number(e.target.value))}
+                    className="w-full bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-2.5 text-[#172033] focus:outline-none"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Unit of Measurement</label>
+                  <label className="block text-[#172033] font-semibold mb-1">Unit of Measure</label>
                   <input
                     type="text"
                     required
-                    placeholder="liters, boxes, kits"
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-none focus:border-teal-500"
+                    className="w-full bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-2.5 text-[#172033] focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Delivery Address / Accessibility</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Shelter 4B, Riverview Road, Chennai"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-none focus:border-teal-500"
+                <label className="block text-[#172033] font-semibold mb-1">Detailed Description</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="Specify recipient count, vulnerability factors, or access instructions..."
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  className="w-full bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-2.5 text-[#172033] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Description & Vulnerability Context</label>
-                <textarea
-                  rows={2}
-                  required
-                  placeholder="State specific needs, children/elderly count, road accessibility..."
-                  value={desc}
-                  onChange={(e) => setDesc(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-none focus:border-teal-500"
+                <label className="block text-[#172033] font-semibold mb-1">
+                  Approximate Location Address
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Marina Beach Coastal Sector, Chennai"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full bg-[#F7F8FA] border border-[#E7EAF0] rounded-xl p-2.5 text-[#172033] focus:outline-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-[#E7EAF0]">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 font-semibold"
+                  className="px-3.5 py-2 rounded-xl text-[#687386] hover:bg-[#F7F8FA] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold shadow-xs cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#F04452] hover:bg-[#E02E3D] text-white font-semibold shadow-xs transition-colors cursor-pointer"
                 >
-                  Submit Request
+                  Submit Demand
                 </button>
               </div>
             </form>

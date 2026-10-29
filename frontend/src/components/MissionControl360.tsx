@@ -67,7 +67,7 @@ export const MissionControl360: React.FC<MissionControl360Props> = ({
   const stockReadinessPct = Math.min(100, Math.round((totalAvailStock / totalAllStock) * 100));
 
   const criticalRequestsCount = requests.filter((r) => r.urgency === "CRITICAL").length;
-  const inTransitCount = allocations.filter((a) => a.allocation_status === "In Transit" || a.allocation_status === "Reserved").length;
+  const inTransitCount = allocations.filter((a) => a.allocation_status === "Dispatched" || a.allocation_status === "Reserved").length;
 
   const handleCommandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
